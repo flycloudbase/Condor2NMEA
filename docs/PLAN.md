@@ -220,7 +220,7 @@ Condor kann NMEA **nur** auf einen COM-Port schreiben. Unter Windows braucht man
 | Logging | Serilog (Datei + UI-Senke) | |
 | Treiber (Stufe B) | C, UMDF 2, WDK | MS-Beispiel als Basis |
 | Installer | WiX v4 (MSI + Bundle für Treiber/com0com) | |
-| CI | GitHub Actions (windows-latest): Build, Tests, Release-Artefakt | |
+| Build | lokal per `dotnet build`/`dotnet test`/`dotnet publish` (keine GitHub Actions) | |
 
 **Lizenz:** Werden Codeteile aus XCSoar übernommen, muss das Programm GPL-2.0-or-later sein. Die Formate sind aber gut dokumentiert (Handbuch, FLARM FTD-012, LX-Protokoll), eine Neuimplementierung ist also leicht möglich. Davor sollte die Lizenz entschieden werden. GPL wäre zu com0com ohnehin passend.
 
@@ -273,7 +273,7 @@ docs/
 | **3 – Virtueller COM (Stufe A)** | Com0comProvider, PortSetup-Helfer, Freie-Nummer-Logik, Condor-Läuft-Warnung | Kein HW VSP3 mehr nötig |
 | **4 – Desktop-App** | WPF-UI, Assistent, Monitor, Tray, Einstellungen (JSON in `%APPDATA%`), `UDP.ini`-Helfer | Benutzbares Release 0.x |
 | **5 – Verkehr verfeinern** | Auto-Erkennung des eigenen Flugzeugs, Extrapolation, PFLAM, Radar-Ansicht, HTTP-Spectate | Flüssiges FLARM-Radar |
-| **6 – Installer & CI** | WiX-MSI, GitHub-Actions-Release, Doku/Anleitung für XCSoar/LK8000 | Release 1.0 |
+| **6 – Installer** | WiX-MSI, lokales Release-Skript, Doku/Anleitung für XCSoar/LK8000 | Release 1.0 |
 | **7 – Eigener Treiber (Stufe B)** | UMDF-2-Treiber, Signierung, Installer-Integration, Rückkanal | Vollständig eigenständig |
 
 ---

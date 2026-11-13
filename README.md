@@ -64,7 +64,8 @@ dotnet publish src/Condor2Nmea.App -c Release -r win-x64 --self-contained -p:Pub
 ```
 
 Die Desktop-App (WPF) baut nur unter Windows; Core, Runtime, CLI und Tests laufen auch unter Linux.
-GitHub Actions baut bei jedem Push und stellt `Condor2NMEA.exe` und `condor2nmea.exe` als Artefakt bereit.
+Für eine einzelne, eigenständige `Condor2NMEA.exe` den `publish`-Befehl oben unter Windows ausführen
+(Ergebnis in `src/Condor2Nmea.App/bin/Release/net8.0-windows/win-x64/publish/`).
 
 ## Projektstruktur
 
