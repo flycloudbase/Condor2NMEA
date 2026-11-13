@@ -31,7 +31,7 @@ Desktopprogramm (Windows) für folgende Aufgaben:
   - `compass`/`yaw` sind keine Spur über Grund.
   - `vx/vy` passen nicht zur Spur.
 - **Spectate-Höhe** ist die Höhenmesserhöhe (MSL). Die relative Höhe für FLARM wird deshalb immer aus Spectate selbst (eigenes Flugzeug gegen fremdes) gebildet und nicht mit GPS-Höhe gemischt.
-- **Koordinatenformat in Spectate:** Das Handbuch zeigt `45.53.345N`, XCSoar parst dagegen Hemisphäre plus Dezimalgrad. Der Parser muss beide Formate tolerieren. **Vor der Umsetzung mit einer echten Datei prüfen.**
+- **Koordinatenformat in Spectate:** Das Handbuch zeigt `45.53.345N`, XCSoar parst dagegen Hemisphäre plus Dezimalgrad. Der Parser muss beide Formate tolerieren. **Geprüft mit einer echten Datei:** Condor 3 schreibt `"latitude":"N47.1309"` (Hemisphäre vorne, Dezimalgrad, 4 Nachkommastellen) und zusätzlich `"selected":"True"` für das eigene bzw. ausgewählte Flugzeug.
 - **Spectate.json** wird ständig neu geschrieben. Deshalb mit Datei-Sharing öffnen, ein UTF-8-BOM entfernen und bei halb geschriebener Datei (Parse-Fehler) den letzten gültigen Stand behalten.
 - **COM-Port:** Condor listet die Ports beim Start. Der virtuelle Port muss deshalb **vor dem Start von Condor** existieren (Handbuch S. 81, Schritt 11).
 - **`UDP.ini`-Beispiel im Handbuch:** Dort steht `Host=127.0.0.` (Tippfehler). Der Konfigurationshelfer schreibt `127.0.0.1`.
@@ -286,3 +286,11 @@ docs/
 4. **Rückkanal:** Soll MC/Ballast aus XCSoar je nach Condor zurückgehen? Laut Handbuch gibt es dafür keine Eingangsschnittstelle, deshalb vorerst außerhalb des Umfangs.
 5. **Mehrere Condor-Instanzen** oder ein Condor-PC mit Ausgabe an mehrere Geräte: TCP-Server mit mehreren Clients ist eingeplant, mehrere Condor-Instanzen nicht.
 6. **Lizenz:** Neuimplementierung oder GPL-Übernahme aus XCSoar.
+
+---
+
+## 8. Erkenntnisse aus echten Mitschnitten (Condor 3, Nov. 2026)
+
+- **NMEA:** nur `$GPGGA`, `$GPRMC`, `$LXWP0`, 1 Hz, alle Checksummen gültig. RMC hat **kein Datum**, GGA hat keine Geoid-Separation und hängt Leerfelder an (`…,1101.1,M,,,,,0000`). Die GGA-Höhe ist identisch mit der LXWP0-Baro-Höhe.
+- **UDP:** etwa 10 Hz, je Datagramm eine Zeile pro Wert, im `LogToFile`-Mitschnitt durch Leerzeilen getrennt. Zusätzlich zum Handbuch gibt es `airspeed` (m/s), `radiofrequency` (MHz), `quaternionw`, `ax/ay/az`. `hudmessages` kommt nur, wenn es eine Meldung gibt. `water`/`flaps` fehlten im Mitschnitt (vermutlich abhängig vom Flugzeug).
+- **Spectate.json:** siehe oben; Zahlen als Strings, Zusatzfelder `penalty`, `time`, `selected`.

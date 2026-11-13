@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>condor2nmea</AssemblyName>
+    <RootNamespace>Condor2Nmea.Cli</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Condor2Nmea.Runtime\Condor2Nmea.Runtime.csproj" />
+  </ItemGroup>
+</Project>
