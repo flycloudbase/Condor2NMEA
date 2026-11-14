@@ -16,15 +16,20 @@
                    Text="Live-Ansicht der empfangenen und gesendeten Daten – hilfreich bei der Fehlersuche." />
 
         <ui:Card Grid.Row="2" Padding="14,10" Margin="0,0,0,10">
-            <WrapPanel VerticalAlignment="Center">
-                <CheckBox Content="Eingang" IsChecked="{Binding MonitorShowIn}" Margin="0,0,16,0" />
-                <CheckBox Content="Ausgabe" IsChecked="{Binding MonitorShowOut}" Margin="0,0,16,0" />
-                <CheckBox Content="Info / Fehler" IsChecked="{Binding MonitorShowInfo}" Margin="0,0,16,0" />
-                <ui:TextBox PlaceholderText="Filter, z. B. LXWP0" Width="170" Margin="0,0,16,0" Icon="{ui:SymbolIcon Search24}"
-                            Text="{Binding MonitorFilter, UpdateSourceTrigger=PropertyChanged}" />
-                <ui:ToggleSwitch Content="Pause" IsChecked="{Binding MonitorPaused}" Margin="0,0,16,0" />
-                <ui:Button Content="Leeren" Icon="{ui:SymbolIcon Delete24}" Command="{Binding ClearMonitorCommand}" />
-            </WrapPanel>
+            <StackPanel>
+                <DockPanel>
+                    <ui:Button DockPanel.Dock="Right" Content="Leeren" Icon="{ui:SymbolIcon Delete24}" Command="{Binding ClearMonitorCommand}" />
+                    <ui:ToggleSwitch DockPanel.Dock="Right" Content="Pause" IsChecked="{Binding MonitorPaused}" Margin="16,0" />
+                    <ui:TextBox PlaceholderText="Filter, z. B. LXWP0 oder PFLAA" Icon="{ui:SymbolIcon Search24}"
+                                Text="{Binding MonitorFilter, UpdateSourceTrigger=PropertyChanged}" />
+                </DockPanel>
+                <WrapPanel Margin="0,8,0,0">
+                    <TextBlock Text="Anzeigen:" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="0,0,12,0" />
+                    <CheckBox Content="Eingang" IsChecked="{Binding MonitorShowIn}" Margin="0,0,8,0" />
+                    <CheckBox Content="Ausgabe" IsChecked="{Binding MonitorShowOut}" Margin="0,0,8,0" />
+                    <CheckBox Content="Info / Fehler" IsChecked="{Binding MonitorShowInfo}" />
+                </WrapPanel>
+            </StackPanel>
         </ui:Card>
 
         <ui:Card Grid.Row="3" Padding="0" VerticalAlignment="Stretch" VerticalContentAlignment="Stretch">

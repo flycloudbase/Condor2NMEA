@@ -10,18 +10,8 @@
                  WindowBackdropType="Mica"
                  WindowCornerPreference="Round">
     <Grid x:Name="RootGrid">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
 
-        <ui:TitleBar x:Name="AppTitleBar" Grid.Row="0" Title="Condor2NMEA" CloseWindowByDoubleClickOnIcon="True">
-            <ui:TitleBar.Icon>
-                <ui:SymbolIcon Symbol="AirplaneTakeOff24" />
-            </ui:TitleBar.Icon>
-        </ui:TitleBar>
-
-        <ui:NavigationView x:Name="RootNavigation" Grid.Row="1"
+        <ui:NavigationView x:Name="RootNavigation"
                            PaneDisplayMode="Left"
                            IsBackButtonVisible="Collapsed"
                            IsPaneToggleVisible="True"
@@ -59,5 +49,12 @@
                 </ui:NavigationViewItem>
             </ui:NavigationView.FooterMenuItems>
         </ui:NavigationView>
+
+        <!-- declared after the navigation so it lies on top; the navigation reserves space for it -->
+        <ui:TitleBar x:Name="AppTitleBar" Title="Condor2NMEA" CloseWindowByDoubleClickOnIcon="True" VerticalAlignment="Top">
+            <ui:TitleBar.Icon>
+                <ui:SymbolIcon Symbol="AirplaneTakeOff24" />
+            </ui:TitleBar.Icon>
+        </ui:TitleBar>
     </Grid>
 </ui:FluentWindow>
