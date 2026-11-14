@@ -51,6 +51,11 @@ public sealed class BridgeEngine : IInputSink, IAsyncDisposable
     public string? RecordingPath => _recorder?.Path;
 
     public IReadOnlyList<InputSource> Sources => _sources;
+
+    /// <summary>Statistics per kind of data, independent of where it came from (live or replay).</summary>
+    public ChannelStats NmeaInput { get; } = new("NMEA");
+    public ChannelStats UdpInput { get; } = new("UDP");
+    public ChannelStats SpectateInput { get; } = new("Spectate");
     public IReadOnlyList<NmeaOutput> Outputs => _outputs;
 
     /// <summary>Raised from worker threads.</summary>
@@ -145,6 +150,7 @@ public sealed class BridgeEngine : IInputSink, IAsyncDisposable
     public void OnNmeaLine(string line)
     {
         line = line.Trim();
+        NmeaInput.OnMessage(DateTime.UtcNow);
         _recorder?.Write(RecordingFormat.Nmea, line);
         Log(MonitorDirection.In, "NMEA", line);
 
@@ -163,6 +169,7 @@ public sealed class BridgeEngine : IInputSink, IAsyncDisposable
 
     public void OnUdpPacket(string packet)
     {
+        UdpInput.OnMessage(DateTime.UtcNow);
         _recorder?.Write(RecordingFormat.Udp, packet);
         var now = DateTime.UtcNow;
         UdpPacketParser.Apply(packet, State, now);
@@ -176,6 +183,7 @@ public sealed class BridgeEngine : IInputSink, IAsyncDisposable
 
     public void OnSpectateJson(string json, DateTime sampleTimeUtc)
     {
+        SpectateInput.OnMessage(DateTime.UtcNow);
         _recorder?.Write(RecordingFormat.Spectate, json);
         var pilots = SpectateParser.TryParse(json);
         if (pilots is null)

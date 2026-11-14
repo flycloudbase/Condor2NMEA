@@ -6,5 +6,7 @@
     <Version>0.1.0</Version>
     <Authors>Condor2NMEA contributors</Authors>
     <Product>Condor2NMEA</Product>
+    <!-- Windows-only application; allows building/testing the non-UI parts on other hosts -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>
 </Project>

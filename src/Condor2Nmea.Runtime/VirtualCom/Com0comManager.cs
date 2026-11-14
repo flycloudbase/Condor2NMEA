@@ -1,6 +1,5 @@
 using System.ComponentModel;
 using System.Diagnostics;
-using System.Runtime.Versioning;
 using System.Text.RegularExpressions;
 using Microsoft.Win32;
 
@@ -43,8 +42,7 @@ public sealed partial class Com0comManager
         var candidates = new List<string>();
         if (!string.IsNullOrWhiteSpace(configured))
             candidates.Add(configured);
-        if (OperatingSystem.IsWindows())
-            candidates.AddRange(RegistryCandidates());
+        candidates.AddRange(RegistryCandidates());
         foreach (var pf in new[]
                  {
                      Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
@@ -57,7 +55,6 @@ public sealed partial class Com0comManager
         return candidates.FirstOrDefault(d => File.Exists(Path.Combine(d, "setupc.exe")));
     }
 
-    [SupportedOSPlatform("windows")]
     private static IEnumerable<string> RegistryCandidates()
     {
         var result = new List<string>();
@@ -80,11 +77,65 @@ public sealed partial class Com0comManager
         return result;
     }
 
-    /// <summary>Lists all pairs ("setupc list"; does not need admin rights).</summary>
-    public async Task<IReadOnlyList<Com0comPair>> ListPairsAsync()
+    /// <summary>
+    /// Lists all pairs. setupc.exe always demands administrator rights (even for "list"), so the
+    /// pairs are read from the registry, where com0com keeps its port parameters. Only if that
+    /// fails and <paramref name="allowElevation"/> is set, "setupc list" is run elevated (UAC prompt).
+    /// </summary>
+    public async Task<IReadOnlyList<Com0comPair>> ListPairsAsync(bool allowElevation = false)
     {
-        var output = await RunAsync("list", elevated: false).ConfigureAwait(false);
+        if (ReadPairsFromRegistry() is { } fromRegistry)
+            return fromRegistry;
+        if (!allowElevation)
+            throw new InvalidOperationException(
+                "Die com0com-Ports konnten nicht aus der Registry gelesen werden. „Aktualisieren“ fragt nach Administratorrechten.");
+        var output = await RunAsync("list", elevated: true).ConfigureAwait(false);
         return ParseList(output);
+    }
+
+    /// <summary>
+    /// Reads HKLM\SYSTEM\CurrentControlSet\Services\com0com\Parameters\CNCxN (value PortName) and
+    /// resolves "COM#" names through HKLM\HARDWARE\DEVICEMAP\SERIALCOMM (\Device\com0com1N / 2N).
+    /// Returns null if com0com's registry key does not exist.
+    /// </summary>
+    public static IReadOnlyList<Com0comPair>? ReadPairsFromRegistry()
+    {
+        try
+        {
+            using var hklm = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64);
+            using var parameters = hklm.OpenSubKey(@"SYSTEM\CurrentControlSet\Services\com0com\Parameters");
+            if (parameters is null)
+                return null;
+
+            var serialComm = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            using (var map = hklm.OpenSubKey(@"HARDWARE\DEVICEMAP\SERIALCOMM"))
+            {
+                if (map is not null)
+                    foreach (var name in map.GetValueNames())
+                        if (map.GetValue(name) is string port)
+                            serialComm[name] = port;
+            }
+
+            var lines = new List<string>();
+            foreach (var id in parameters.GetSubKeyNames())
+            {
+                var m = ListLine().Match(id);
+                if (!m.Success)
+                    continue;
+                using var key = parameters.OpenSubKey(id);
+                var portName = key?.GetValue("PortName") as string ?? id;
+                var side = m.Groups[1].Value.Equals("A", StringComparison.OrdinalIgnoreCase) ? 1 : 2;
+                var line = $"{id.ToUpperInvariant()} PortName={portName}";
+                if (serialComm.TryGetValue($@"\Device\com0com{side}{m.Groups[2].Value}", out var real))
+                    line += $",RealPortName={real}";
+                lines.Add(line);
+            }
+            return ParseList(string.Join("\n", lines));
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or System.Security.SecurityException or IOException)
+        {
+            return null;
+        }
     }
 
     /// <summary>
@@ -95,10 +146,11 @@ public sealed partial class Com0comManager
     {
         if (comNumber is < 1 or > 255)
             throw new ArgumentOutOfRangeException(nameof(comNumber));
-        var before = await ListPairsAsync().ConfigureAwait(false);
+        var before = ReadPairsFromRegistry() ?? Array.Empty<Com0comPair>();
         var output = await RunAsync($"--silent install PortName=COM{comNumber} -", elevated: true).ConfigureAwait(false);
-        var after = await ListPairsAsync().ConfigureAwait(false);
-        var created = after.FirstOrDefault(p => before.All(b => b.Index != p.Index));
+        // setupc prints the new pair ("CNCA1 PortName=COM9" / "CNCB1 PortName=-")
+        var created = ParseList(output).FirstOrDefault()
+                      ?? (ReadPairsFromRegistry() ?? Array.Empty<Com0comPair>()).FirstOrDefault(p => before.All(b => b.Index != p.Index));
         return created ?? throw new InvalidOperationException("com0com hat kein neues Paar angelegt:\n" + output);
     }
 
@@ -161,30 +213,11 @@ public sealed partial class Com0comManager
 
     // ------------------------------------------------------------------ process
 
-    private async Task<string> RunAsync(string arguments, bool elevated)
+    private async Task<string> RunAsync(string arguments, bool elevated = true)
     {
-        if (!OperatingSystem.IsWindows())
-            throw new PlatformNotSupportedException("com0com gibt es nur unter Windows.");
         var dir = InstallDirectory
                   ?? throw new InvalidOperationException("com0com ist nicht installiert (setupc.exe nicht gefunden).");
         var setupc = Path.Combine(dir, "setupc.exe");
-
-        if (!elevated)
-        {
-            var psi = new ProcessStartInfo(setupc, arguments)
-            {
-                WorkingDirectory = dir, // setupc needs its .inf files from the working directory
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                CreateNoWindow = true,
-            };
-            using var p = Process.Start(psi) ?? throw new InvalidOperationException("setupc.exe startet nicht");
-            var stdout = p.StandardOutput.ReadToEndAsync();
-            var stderr = p.StandardError.ReadToEndAsync();
-            await p.WaitForExitAsync().ConfigureAwait(false);
-            return await stdout.ConfigureAwait(false) + await stderr.ConfigureAwait(false);
-        }
 
         // Elevated: ShellExecute "runas" cannot redirect, so let cmd write the output to a temp file.
         var tmp = Path.Combine(Path.GetTempPath(), $"condor2nmea-setupc-{Guid.NewGuid():N}.txt");

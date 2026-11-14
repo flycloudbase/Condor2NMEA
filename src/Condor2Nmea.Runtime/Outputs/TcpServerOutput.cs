@@ -19,6 +19,8 @@ public sealed class TcpServerOutput : NmeaOutput
     public override string Connections =>
         _clients.IsEmpty ? $"Port {Settings.Port}, kein Client" : $"Port {Settings.Port}: " + string.Join(", ", _clients.Keys);
 
+    public override int ClientCount => _clients.Count;
+
     public override void Send(IReadOnlyList<string> sentences)
     {
         if (_clients.IsEmpty || sentences.Count == 0)

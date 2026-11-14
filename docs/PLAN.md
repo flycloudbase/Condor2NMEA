@@ -215,7 +215,7 @@ Condor kann NMEA **nur** auf einen COM-Port schreiben. Unter Windows braucht man
 | Bereich | Wahl | Begründung |
 |---|---|---|
 | Sprache/Runtime | **C# / .NET 8 (LTS)** | Windows-only wie Condor, `System.IO.Ports`, `System.Text.Json` und Sockets sind eingebaut, Single-File-Publish |
-| UI | **WPF** (MVVM, CommunityToolkit.Mvvm) | ausgereift, Tray-Icon einfach. Alternativ Avalonia, falls später Linux/Wine gewünscht ist. |
+| UI | **WPF** mit WPF-UI (Fluent Design), MVVM mit CommunityToolkit.Mvvm | ausgereift, modernes Windows-11-Aussehen; Programm ist bewusst nur für Windows |
 | Struktur | Generic Host + DI, `Channel<T>` zwischen den Stufen | saubere Nebenläufigkeit, testbar |
 | Logging | Serilog (Datei + UI-Senke) | |
 | Treiber (Stufe B) | C, UMDF 2, WDK | MS-Beispiel als Basis |
@@ -256,7 +256,7 @@ docs/
   - Spectate.json-Schnappschüsse aus einem Multiplayer-Flug
   - Wiedergabe gegen eine erwartete NMEA-Ausgabe
 - **Interop-Tests:**
-  - XCSoar (Desktop/Linux-Build oder Android) per TCP: Position, Höhe (Geoid!), Wind (Richtung!), FLARM-Radar
+  - XCSoar (Windows-Build oder Android) per TCP: Position, Höhe (Geoid!), Wind (Richtung!), FLARM-Radar
   - LK8000 und SeeYou Navigator stichprobenartig
 - **COM-Tests** auf frischer Win10- und Win11-VM mit Secure Boot: Portanlage, Condor sieht den Port, Neustart-Persistenz, Deinstallation.
 - **Simulator-Quelle** (Kreisflug + KI-Verkehr) für UI-Entwicklung ohne Condor.

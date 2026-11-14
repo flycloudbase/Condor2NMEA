@@ -20,22 +20,20 @@ sodass HW VSP3 o. ä. nicht mehr nötig ist.
 
 ## Schnellstart
 
-1. **com0com installieren** (signiertes Setup von <https://sourceforge.net/projects/com0com/files/com0com/>).
-   Bei der Installation die Optionen für Beispiel-Ports abwählen.
-2. `Condor2NMEA.exe` starten → Tab **Virtueller COM-Port** → *Anlegen (Administrator)*.
-   Es entsteht z. B. `COM9` (für Condor) ↔ `CNCB0` (liest Condor2NMEA). Der Eingang wird automatisch eingestellt.
-3. Tab **Einstellungen** → Condor-Ordner prüfen → **UDP.ini einrichten** (aktiviert UDP, 50 ms, ExtendedData/ExtendedData1; Backup `UDP.ini.bak`).
-4. **Condor starten** (erst *nach* dem Anlegen des Ports!) → *Setup → Options → NMEA output* → `COM9`.
-5. **XCSoar**: *Config → Devices → Device A*
-   - Port **TCP client**, IP des Condor-PCs (wird oben im Programm angezeigt), Port **4353**,
-   - Treiber **Condor Soaring Simulator 3**.
+`Condor2NMEA.exe` starten. Beim ersten Start öffnet sich die Seite **Einrichtung**, die in fünf Schritten durch alles führt
+und erledigte Schritte automatisch abhakt:
 
-   Alternativ in Condor2NMEA einen Ausgang vom Typ *TcpClient* auf die IP des XCSoar-Geräts anlegen und in XCSoar
-   Port **TCP port 4353** wählen (wie in der HW-VSP3-Anleitung des Condor-Handbuchs).
-6. Optional zweites XCSoar-Gerät: Ausgang mit Profil *OpenVario* (z. B. Port 4354), XCSoar-Treiber *OpenVario*.
+1. **com0com installieren** – Download-Knopf öffnet die Seite des signierten Treibers. Bei der Installation die Häkchen für Beispiel-Ports entfernen.
+2. **Virtuellen COM-Port anlegen** – ein Klick (Windows fragt einmal nach Administratorrechten). Es entsteht z. B. `COM9` für Condor ↔ `CNCB0` für Condor2NMEA.
+3. **Condor-Ausgaben einschalten** – in Condor *Setup → Options → NMEA output* den angezeigten Port wählen; „UDP-Ausgabe einrichten“ schreibt die `UDP.ini` (mit Sicherung).
+4. **Condor starten und fliegen** – Condor erst *nach* dem Anlegen des Ports starten.
+5. **Flugcomputer verbinden** – in XCSoar *Konfiguration → Geräte → Gerät A*: Port **TCP-Client**, angezeigte IP-Adresse, Port **4353**,
+   Treiber **Condor Soaring Simulator 3**.
 
-Im Tab **Status** sieht man Rate und Alter jeder Quelle, verbundene Clients und alle Live-Werte; im Tab **Verkehr**
-die Multiplayer-Flugzeuge; der **NMEA-Monitor** zeigt ein- und ausgehende Sätze.
+Die **Übersicht** zeigt danach auf einen Blick, ob Daten aus Condor ankommen und ob der Flugcomputer verbunden ist, dazu Höhe, Fahrt,
+Vario, Netto, Wind und MacCready. Unter **Verkehr** gibt es ein Radar der Multiplayer-Flugzeuge, der **NMEA-Monitor** zeigt alle Sätze.
+Weitere Geräte (z. B. ein zweites XCSoar-Gerät mit Profil *OpenVario* oder den umgekehrten Verbindungsweg *TCP-Client*) legst du unter
+**Einstellungen → Ausgänge** an.
 
 ### Ohne COM-Port
 
@@ -63,7 +61,7 @@ dotnet test tests/Condor2Nmea.Tests
 dotnet publish src/Condor2Nmea.App -c Release -r win-x64 --self-contained -p:PublishSingleFile=true
 ```
 
-Die Desktop-App (WPF) baut nur unter Windows; Core, Runtime, CLI und Tests laufen auch unter Linux.
+Condor2NMEA ist ein reines Windows-Programm (.NET 8, WPF mit [WPF-UI](https://github.com/lepoco/wpfui) im Fluent-Design).
 GitHub Actions baut bei jedem Push und stellt `Condor2NMEA.exe` und `condor2nmea.exe` als Artefakt bereit.
 
 ## Projektstruktur

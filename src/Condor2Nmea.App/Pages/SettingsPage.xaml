@@ -1,0 +1,277 @@
+<Page x:Class="Condor2Nmea.App.Pages.SettingsPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      xmlns:vm="clr-namespace:Condor2Nmea.App.ViewModels"
+      Title="Einstellungen"
+      ScrollViewer.CanContentScroll="False">
+    <Page.Resources>
+        <Style x:Key="Section" TargetType="TextBlock" BasedOn="{StaticResource SectionTitle}">
+            <Setter Property="Margin" Value="0,22,0,10" />
+        </Style>
+        <Style x:Key="RowLabel" TargetType="TextBlock" BasedOn="{StaticResource Body}">
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="0,0,16,0" />
+        </Style>
+    </Page.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- header with save button, always visible -->
+        <Grid Margin="36,24,36,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+                <TextBlock Style="{StaticResource PageTitle}" Text="Einstellungen" />
+                <TextBlock Style="{StaticResource Caption}" Text="{Binding SaveStatus}" />
+            </StackPanel>
+            <ui:Button Grid.Column="1" Content="Speichern und übernehmen" Icon="{ui:SymbolIcon Save24}" Appearance="Primary"
+                       Command="{Binding SaveAndApplyCommand}" VerticalAlignment="Center" Height="38" />
+        </Grid>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="36,0,36,36" MaxWidth="980" HorizontalAlignment="Left">
+
+                <!-- ========================================== outputs -->
+                <TextBlock Style="{StaticResource Section}" Text="Ausgänge zum Flugcomputer" Margin="0,8,0,10" />
+                <ItemsControl ItemsSource="{Binding Outputs}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <ui:Card Margin="0,0,0,10" Padding="20,16">
+                                <StackPanel>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <ui:ToggleSwitch IsChecked="{Binding Enabled}" ToolTip="Ausgang aktiv" Margin="0,0,12,0" />
+                                        <ui:TextBox Grid.Column="1" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="Name" FontWeight="SemiBold" />
+                                        <ui:Button Grid.Column="2" Icon="{ui:SymbolIcon Delete24}" ToolTip="Ausgang entfernen" Appearance="Transparent" Margin="8,0,0,0"
+                                                   Command="{Binding DataContext.RemoveOutputCommand, RelativeSource={RelativeSource AncestorType=Page}}"
+                                                   CommandParameter="{Binding}" />
+                                    </Grid>
+                                    <Grid Margin="0,4,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="16" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel>
+                                            <TextBlock Style="{StaticResource FieldLabel}" Text="Verbindung" />
+                                            <ComboBox ItemsSource="{x:Static vm:OutputEditor.KindOptions}" DisplayMemberPath="Label"
+                                                      SelectedValuePath="Value" SelectedValue="{Binding Kind}" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Style="{StaticResource FieldLabel}" Text="Daten / Flugcomputer" />
+                                            <ComboBox ItemsSource="{x:Static vm:OutputEditor.PresetOptions}" DisplayMemberPath="Label"
+                                                      SelectedValuePath="Value" SelectedValue="{Binding Preset}" />
+                                        </StackPanel>
+                                    </Grid>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="16" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Visibility="{Binding NeedsHost, Converter={StaticResource BoolToVisibility}}">
+                                            <TextBlock Style="{StaticResource FieldLabel}" Text="{Binding HostLabel}" />
+                                            <ui:TextBox Text="{Binding Host}" PlaceholderText="z. B. 192.168.0.12" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Style="{StaticResource FieldLabel}" Text="Port" />
+                                            <ui:TextBox Text="{Binding Port}" PlaceholderText="4353" />
+                                        </StackPanel>
+                                    </Grid>
+                                    <WrapPanel Margin="0,12,0,0" Visibility="{Binding IsCustom, Converter={StaticResource BoolToVisibility}}">
+                                        <CheckBox Content="Condor-NMEA unverändert" IsChecked="{Binding RawPassthrough}" Margin="0,0,16,6" />
+                                        <CheckBox Content="GPS (RMC/GGA)" IsChecked="{Binding Gps}" Margin="0,0,16,6" />
+                                        <CheckBox Content="LXWP0" IsChecked="{Binding Lxwp0}" Margin="0,0,16,6" />
+                                        <CheckBox Content="LXWP2 (MacCready)" IsChecked="{Binding Lxwp2}" Margin="0,0,16,6" />
+                                        <CheckBox Content="OpenVario POV" IsChecked="{Binding OpenVario}" Margin="0,0,16,6" />
+                                        <CheckBox Content="FLARM-Verkehr" IsChecked="{Binding Flarm}" Margin="0,0,16,6" />
+                                        <CheckBox Content="FLARM-Namen" IsChecked="{Binding FlarmNames}" Margin="0,0,16,6" />
+                                    </WrapPanel>
+                                    <CheckBox Margin="0,10,0,0" IsChecked="{Binding WindDirectionTo}"
+                                              Content="Wind als „weht nach“ senden (nur für den alten XCSoar-Treiber „Condor Soaring Simulator“)" />
+                                </StackPanel>
+                            </ui:Card>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <ui:Button Content="Ausgang hinzufügen" Icon="{ui:SymbolIcon Add24}" Command="{Binding AddOutputCommand}" />
+
+                <!-- ========================================== Condor -->
+                <TextBlock Style="{StaticResource Section}" Text="Condor" />
+                <ui:Card Padding="20,16">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource FieldLabel}" Text="Condor-3-Ordner" Margin="0,0,0,4" />
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <ui:TextBox Text="{Binding Settings.Condor.InstallPath}" PlaceholderText="C:\Condor3" />
+                            <ui:Button Grid.Column="1" Icon="{ui:SymbolIcon FolderOpen24}" Margin="8,0,0,0" Command="{Binding BrowseCondorCommand}" />
+                        </Grid>
+                        <CheckBox Margin="0,12,0,0" IsChecked="{Binding Settings.Condor.InputWindDirectionIsTo}"
+                                  Content="Condor 1 / 2: Wind kommt als „weht nach“ (für Condor 3 ausgeschaltet lassen)" />
+                    </StackPanel>
+                </ui:Card>
+
+                <!-- ========================================== inputs -->
+                <TextBlock Style="{StaticResource Section}" Text="Eingänge" />
+                <ui:Card Padding="20,16" Margin="0,0,0,10">
+                    <StackPanel>
+                        <DockPanel>
+                            <ui:ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding Settings.Serial.Enabled}" />
+                            <StackPanel>
+                                <TextBlock Text="Condor NMEA (COM-Port)" Style="{StaticResource CardTitle}" />
+                                <TextBlock Text="Wird im Schritt „Virtuellen COM-Port anlegen“ automatisch eingestellt." Style="{StaticResource Caption}" />
+                            </StackPanel>
+                        </DockPanel>
+                        <Grid Margin="0,4,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="16" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource FieldLabel}" Text="Port, den Condor2NMEA liest" />
+                                <ui:TextBox Text="{Binding Settings.Serial.PortName}" PlaceholderText="CNCB0" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Style="{StaticResource FieldLabel}" Text="Baudrate" />
+                                <ui:TextBox Text="{Binding Settings.Serial.BaudRate}" />
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </ui:Card>
+                <ui:Card Padding="20,16" Margin="0,0,0,10">
+                    <StackPanel>
+                        <DockPanel>
+                            <ui:ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding Settings.Udp.Enabled}" />
+                            <StackPanel>
+                                <TextBlock Text="Condor UDP" Style="{StaticResource CardTitle}" />
+                                <TextBlock Text="Muss zu Port und Adresse in Condors UDP.ini passen." Style="{StaticResource Caption}" />
+                            </StackPanel>
+                        </DockPanel>
+                        <Grid Margin="0,4,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="16" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource FieldLabel}" Text="Empfangsadresse" />
+                                <ui:TextBox Text="{Binding Settings.Udp.BindAddress}" PlaceholderText="127.0.0.1" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Style="{StaticResource FieldLabel}" Text="Port" />
+                                <ui:TextBox Text="{Binding Settings.Udp.Port}" PlaceholderText="55278" />
+                            </StackPanel>
+                        </Grid>
+                        <TextBlock Style="{StaticResource FieldLabel}" Text="UDP-Daten unverändert weiterleiten an (eine Adresse host:port pro Zeile, z. B. für Motion-Plattformen)" />
+                        <ui:TextBox Text="{Binding ForwardTargets}" AcceptsReturn="True" MinHeight="60" TextWrapping="Wrap"
+                                    PlaceholderText="192.168.0.20:55278" />
+                    </StackPanel>
+                </ui:Card>
+                <ui:Card Padding="20,16">
+                    <StackPanel>
+                        <TextBlock Text="Multiplayer-Verkehr (Spectate)" Style="{StaticResource CardTitle}" />
+                        <TextBlock Text="Andere Segelflugzeuge werden als FLARM-Ziele an den Flugcomputer gesendet." Style="{StaticResource Caption}" />
+                        <Grid Margin="0,4,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="16" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource FieldLabel}" Text="Quelle" />
+                                <ComboBox ItemsSource="{x:Static vm:MainViewModel.SpectateModeOptions}" DisplayMemberPath="Label"
+                                          SelectedValuePath="Value" SelectedValue="{Binding Settings.Spectate.Mode}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Style="{StaticResource FieldLabel}" Text="Eigene Wettbewerbskennung (leer = automatisch)" />
+                                <ui:TextBox Text="{Binding Settings.Spectate.OwnCn}" PlaceholderText="z. B. CG" />
+                            </StackPanel>
+                        </Grid>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="16" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource FieldLabel}" Text="Spectate.json (leer = Condor-Ordner\Logs)" />
+                                <ui:TextBox Text="{Binding Settings.Spectate.FilePath}" PlaceholderText="C:\Condor3\Logs\Spectate.json" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Style="{StaticResource FieldLabel}" Text="HTTP-Adresse (Spectate!-Modus)" />
+                                <ui:TextBox Text="{Binding Settings.Spectate.HttpUrl}" />
+                            </StackPanel>
+                        </Grid>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="16" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource FieldLabel}" Text="Maximale Entfernung (km)" />
+                                <ui:TextBox Text="{Binding Settings.Spectate.MaxRangeKm}" />
+                            </StackPanel>
+                        </Grid>
+                        <CheckBox Margin="0,12,0,0" Content="Eigenes Flugzeug automatisch erkennen" IsChecked="{Binding Settings.Spectate.AutoDetectOwnShip}" />
+                        <CheckBox Content="Positionen zwischen den Updates hochrechnen (flüssigeres Radar)" IsChecked="{Binding Settings.Spectate.Extrapolate}" />
+                        <CheckBox Content="Wettbewerbskennung an FLARM-ID anhängen (XCSoar zeigt sie dann an)" IsChecked="{Binding Settings.Spectate.AppendCnToFlarmId}" />
+                        <CheckBox Content="Ohne COM-Port die eigene Position aus Spectate verwenden (1 Hz)" IsChecked="{Binding Settings.Spectate.UseAsPositionFallback}" />
+                    </StackPanel>
+                </ui:Card>
+
+                <!-- ========================================== advanced -->
+                <TextBlock Style="{StaticResource Section}" Text="Erweitert" />
+                <ui:Card Padding="20,16">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="12" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="12" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="12" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource FieldLabel}" Text="GPS-Rate (Hz)" Margin="0,0,0,4" />
+                                <ui:TextBox Text="{Binding Settings.Rates.GpsHz}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Style="{StaticResource FieldLabel}" Text="Vario-Rate (Hz)" Margin="0,0,0,4" />
+                                <ui:TextBox Text="{Binding Settings.Rates.VarioHz}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="4">
+                                <TextBlock Style="{StaticResource FieldLabel}" Text="FLARM-Rate (Hz)" Margin="0,0,0,4" />
+                                <ui:TextBox Text="{Binding Settings.Rates.FlarmHz}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="6">
+                                <TextBlock Style="{StaticResource FieldLabel}" Text="FLARM-Namen alle (s)" Margin="0,0,0,4" />
+                                <ui:TextBox Text="{Binding Settings.Rates.FlarmNamesIntervalSeconds}" />
+                            </StackPanel>
+                        </Grid>
+                        <CheckBox Margin="0,14,0,0" Content="Beim Programmstart automatisch verbinden" IsChecked="{Binding Settings.AutoStart}" />
+                        <CheckBox Content="Alle Eingangsdaten aufzeichnen (für Fehlersuche, %APPDATA%\Condor2NMEA\recordings)"
+                                  IsChecked="{Binding Settings.Recording.Enabled}" />
+                    </StackPanel>
+                </ui:Card>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Page>
