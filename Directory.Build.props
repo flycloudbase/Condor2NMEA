@@ -1,0 +1,10 @@
+<Project>
+  <PropertyGroup>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <Version>0.1.0</Version>
+    <Authors>Condor2NMEA contributors</Authors>
+    <Product>Condor2NMEA</Product>
+  </PropertyGroup>
+</Project>

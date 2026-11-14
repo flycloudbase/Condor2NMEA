@@ -1,0 +1,328 @@
+<Window x:Class="Condor2Nmea.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:Condor2Nmea.App.ViewModels"
+        Title="Condor2NMEA" Height="760" Width="1100" MinHeight="500" MinWidth="800"
+        FontSize="13">
+    <Window.DataContext>
+        <vm:MainViewModel />
+    </Window.DataContext>
+    <DockPanel Margin="10">
+        <!-- header -->
+        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+            <Button DockPanel.Dock="Left" Content="{Binding StartStopText}" Command="{Binding StartStopCommand}"
+                    FontWeight="Bold" MinWidth="100" />
+            <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center" Foreground="#666">
+                <Run Text="IP-Adressen dieses PCs:" /> <Run Text="{Binding LocalAddresses, Mode=OneWay}" FontWeight="SemiBold" />
+            </TextBlock>
+            <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center" Margin="8,0" />
+        </DockPanel>
+        <Border DockPanel.Dock="Top" Background="#FFF4CE" BorderBrush="#E0B000" BorderThickness="1" Padding="8" Margin="0,0,0,8">
+            <Border.Style>
+                <Style TargetType="Border">
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding CondorWarning}" Value="">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
+            <TextBlock Text="{Binding CondorWarning}" TextWrapping="Wrap" />
+        </Border>
+
+        <TabControl>
+            <!-- ============================================================ status -->
+            <TabItem Header="Status">
+                <Grid Margin="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="3*" />
+                        <ColumnDefinition Width="10" />
+                        <ColumnDefinition Width="2*" />
+                    </Grid.ColumnDefinitions>
+                    <DockPanel>
+                        <GroupBox Header="Eingänge" DockPanel.Dock="Top">
+                            <DataGrid ItemsSource="{Binding Sources}" MinHeight="90">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Quelle" Binding="{Binding Name}" Width="170" />
+                                    <DataGridTextColumn Header="Zustand" Binding="{Binding State}" Width="80" />
+                                    <DataGridTextColumn Header="Rate" Binding="{Binding Rate}" Width="65" />
+                                    <DataGridTextColumn Header="Anzahl" Binding="{Binding Count}" Width="65" />
+                                    <DataGridTextColumn Header="Alter" Binding="{Binding Age}" Width="55" />
+                                    <DataGridTextColumn Header="Info" Binding="{Binding Message}" Width="*" />
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </GroupBox>
+                        <GroupBox Header="Ausgänge" DockPanel.Dock="Top">
+                            <DataGrid ItemsSource="{Binding OutputStatus}" MinHeight="70">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Ausgang" Binding="{Binding Name}" Width="170" />
+                                    <DataGridTextColumn Header="Zustand" Binding="{Binding State}" Width="80" />
+                                    <DataGridTextColumn Header="Rate" Binding="{Binding Rate}" Width="65" />
+                                    <DataGridTextColumn Header="Verbindungen" Binding="{Binding Message}" Width="*" />
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </GroupBox>
+                        <TextBlock Style="{StaticResource Hint}" DockPanel.Dock="Top" Margin="0,0,0,8">
+                            So verbindest du XCSoar: Gerät A → Port „TCP-Client“, IP dieses PCs, Port 4353, Treiber „Condor Soaring Simulator 3“.
+                            Alternativ einen Ausgang vom Typ „TcpClient“ anlegen, wenn XCSoar selbst als „TCP-Port“ lauscht (wie in der HW-VSP3-Anleitung).
+                        </TextBlock>
+                        <Grid />
+                    </DockPanel>
+                    <GroupBox Grid.Column="2" Header="Live-Werte">
+                        <DataGrid ItemsSource="{Binding LiveValues}">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Größe" Binding="{Binding Name}" Width="150" />
+                                <DataGridTextColumn Header="Wert" Binding="{Binding Value}" Width="*" />
+                                <DataGridTextColumn Header="Quelle" Binding="{Binding Source}" Width="60" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </GroupBox>
+                </Grid>
+            </TabItem>
+
+            <!-- ============================================================ traffic -->
+            <TabItem Header="Verkehr">
+                <DockPanel Margin="8">
+                    <TextBlock DockPanel.Dock="Top" Text="{Binding TrafficInfo}" Margin="0,0,0,6" />
+                    <DataGrid ItemsSource="{Binding Traffic}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="CN" Binding="{Binding Cn}" Width="60" />
+                            <DataGridTextColumn Header="Pilot" Binding="{Binding Pilot}" Width="180" />
+                            <DataGridTextColumn Header="Flugzeug" Binding="{Binding Plane}" Width="120" />
+                            <DataGridTextColumn Header="Entfernung" Binding="{Binding Distance}" Width="90" />
+                            <DataGridTextColumn Header="Peilung" Binding="{Binding Bearing}" Width="70" />
+                            <DataGridTextColumn Header="Höhe rel." Binding="{Binding Vertical}" Width="80" />
+                            <DataGridTextColumn Header="Fahrt" Binding="{Binding Speed}" Width="80" />
+                            <DataGridTextColumn Header="Vario" Binding="{Binding Vario}" Width="80" />
+                            <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </DockPanel>
+            </TabItem>
+
+            <!-- ============================================================ monitor -->
+            <TabItem Header="NMEA-Monitor">
+                <DockPanel Margin="8">
+                    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,6">
+                        <CheckBox Content="Eingang" IsChecked="{Binding MonitorShowIn}" Margin="0,0,12,0" />
+                        <CheckBox Content="Ausgabe" IsChecked="{Binding MonitorShowOut}" Margin="0,0,12,0" />
+                        <CheckBox Content="Info/Fehler" IsChecked="{Binding MonitorShowInfo}" Margin="0,0,12,0" />
+                        <TextBlock Text="Filter:" Style="{StaticResource Label}" />
+                        <TextBox Text="{Binding MonitorFilter, UpdateSourceTrigger=PropertyChanged}" Width="160" Margin="0,0,12,0" />
+                        <ToggleButton Content="Pause" IsChecked="{Binding MonitorPaused}" Padding="12,4" Margin="0,0,8,0" />
+                        <Button Content="Leeren" Command="{Binding ClearMonitorCommand}" />
+                    </StackPanel>
+                    <ListView x:Name="MonitorList" ItemsSource="{Binding Monitor}" FontFamily="Consolas" FontSize="12"
+                              VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
+                        <ListView.View>
+                            <GridView>
+                                <GridViewColumn Header="Zeit" DisplayMemberBinding="{Binding Time}" Width="95" />
+                                <GridViewColumn Header="" DisplayMemberBinding="{Binding Direction}" Width="25" />
+                                <GridViewColumn Header="Kanal" DisplayMemberBinding="{Binding Channel}" Width="140" />
+                                <GridViewColumn Header="Text" DisplayMemberBinding="{Binding Text}" Width="680" />
+                            </GridView>
+                        </ListView.View>
+                    </ListView>
+                </DockPanel>
+            </TabItem>
+
+            <!-- ============================================================ COM port -->
+            <TabItem Header="Virtueller COM-Port" DataContext="{Binding ComPort}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="8" MaxWidth="900" HorizontalAlignment="Left">
+                        <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,10">
+                            Condor gibt NMEA nur auf einen COM-Port aus. Condor2NMEA legt dafür mit com0com ein virtuelles Port-Paar an:
+                            Condor schreibt auf „COMx“, Condor2NMEA liest die Gegenseite „CNCBx“. HW VSP3 o. ä. wird nicht mehr gebraucht.
+                            Anlegen/Entfernen fragt einmal nach Administratorrechten. Der Port bleibt dauerhaft bestehen.
+                        </TextBlock>
+                        <GroupBox Header="com0com">
+                            <StackPanel>
+                                <TextBlock Text="{Binding InstallStatus}" TextWrapping="Wrap" />
+                                <DockPanel Margin="0,6,0,0">
+                                    <TextBlock Text="Ordner (leer = automatisch):" Style="{StaticResource Label}" />
+                                    <Button DockPanel.Dock="Right" Content="Durchsuchen …" Command="{Binding BrowseCom0comCommand}" Margin="8,0,0,0" />
+                                    <TextBox Text="{Binding Com0comPath, UpdateSourceTrigger=LostFocus}" />
+                                </DockPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                    <Button Content="com0com herunterladen" Command="{Binding OpenDownloadCommand}" />
+                                    <Button Content="Aktualisieren" Command="{Binding RefreshCommand}" />
+                                </StackPanel>
+                            </StackPanel>
+                        </GroupBox>
+                        <GroupBox Header="Port-Paare">
+                            <StackPanel>
+                                <ListBox ItemsSource="{Binding Pairs}" SelectedItem="{Binding SelectedPair}" MinHeight="80" MaxHeight="200">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock>
+                                                <Run Text="Paar" /> <Run Text="{Binding Index, Mode=OneWay}" /><Run Text=":  Condor →" />
+                                                <Run Text="{Binding CondorPort, Mode=OneWay}" FontWeight="Bold" />
+                                                <Run Text="   Condor2NMEA liest" />
+                                                <Run Text="{Binding AppPort, Mode=OneWay}" FontWeight="Bold" />
+                                            </TextBlock>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                    <Button Content="Als NMEA-Eingang verwenden" Command="{Binding UsePairCommand}" />
+                                    <Button Content="Paar entfernen" Command="{Binding RemovePairCommand}" />
+                                </StackPanel>
+                                <TextBlock Style="{StaticResource Hint}">
+                                    <Run Text="Aktueller NMEA-Eingang:" /> <Run Text="{Binding CurrentInput, Mode=OneWay}" FontWeight="SemiBold" />
+                                    <Run Text="   ·   Vorhandene COM-Ports:" /> <Run Text="{Binding PresentPorts, Mode=OneWay}" />
+                                </TextBlock>
+                            </StackPanel>
+                        </GroupBox>
+                        <GroupBox Header="Neues Paar anlegen">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Name für Condor:  COM" Style="{StaticResource Label}" Margin="0" />
+                                <TextBox Text="{Binding ComNumber}" Width="50" Margin="0,0,10,0" />
+                                <Button Content="Anlegen (Administrator)" Command="{Binding CreatePairCommand}" IsEnabled="{Binding IsInstalled}" />
+                            </StackPanel>
+                        </GroupBox>
+                        <TextBlock Style="{StaticResource Hint}">
+                            Danach Condor (neu) starten und unter Setup → Options → NMEA output den angelegten COM-Port wählen.
+                            Condor zeigt nur Ports an, die beim Start schon existieren.
+                        </TextBlock>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ============================================================ settings -->
+            <TabItem Header="Einstellungen">
+                <DockPanel Margin="8">
+                    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,8,0,0">
+                        <Button Content="Speichern und übernehmen" Command="{Binding SaveAndRestartCommand}" FontWeight="Bold" />
+                    </StackPanel>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel MaxWidth="1000" HorizontalAlignment="Stretch">
+                            <GroupBox Header="Condor">
+                                <StackPanel>
+                                    <DockPanel>
+                                        <TextBlock Text="Condor-3-Ordner:" Style="{StaticResource Label}" Width="170" />
+                                        <Button DockPanel.Dock="Right" Content="Durchsuchen …" Command="{Binding BrowseCondorCommand}" Margin="8,0,0,0" />
+                                        <TextBox Text="{Binding Settings.Condor.InstallPath}" />
+                                    </DockPanel>
+                                    <DockPanel Margin="0,6,0,0">
+                                        <Button DockPanel.Dock="Right" Content="UDP.ini einrichten" Command="{Binding ConfigureUdpIniCommand}" Margin="8,0,0,0" />
+                                        <TextBlock Text="{Binding UdpIniStatus}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                    </DockPanel>
+                                    <CheckBox Content="Wind in LXWP0 von Condor ist „weht nach“ (Condor 1/2; für Condor 3 aus lassen)"
+                                              IsChecked="{Binding Settings.Condor.InputWindDirectionIsTo}" />
+                                </StackPanel>
+                            </GroupBox>
+                            <GroupBox Header="Eingang NMEA (COM-Port)">
+                                <StackPanel>
+                                    <CheckBox Content="aktiv" IsChecked="{Binding Settings.Serial.Enabled}" />
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="Port:" Style="{StaticResource Label}" />
+                                        <TextBox Text="{Binding Settings.Serial.PortName}" Width="100" Margin="0,0,20,0" />
+                                        <TextBlock Text="Baud:" Style="{StaticResource Label}" />
+                                        <TextBox Text="{Binding Settings.Serial.BaudRate}" Width="80" />
+                                    </StackPanel>
+                                    <TextBlock Style="{StaticResource Hint}" Text="Bei com0com die interne Seite (z. B. CNCB0) – wird im Tab „Virtueller COM-Port“ automatisch gesetzt." />
+                                </StackPanel>
+                            </GroupBox>
+                            <GroupBox Header="Eingang UDP (UDP.ini)">
+                                <StackPanel>
+                                    <CheckBox Content="aktiv" IsChecked="{Binding Settings.Udp.Enabled}" />
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="Adresse:" Style="{StaticResource Label}" />
+                                        <TextBox Text="{Binding Settings.Udp.BindAddress}" Width="120" Margin="0,0,20,0" />
+                                        <TextBlock Text="Port:" Style="{StaticResource Label}" />
+                                        <TextBox Text="{Binding Settings.Udp.Port}" Width="70" />
+                                    </StackPanel>
+                                    <TextBlock Text="UDP unverändert weiterleiten an (host:port, eine Zeile je Ziel, z. B. für Motion-Plattformen):" Margin="0,6,0,0" />
+                                    <TextBox Text="{Binding ForwardTargets}" AcceptsReturn="True" Height="50" VerticalScrollBarVisibility="Auto" />
+                                </StackPanel>
+                            </GroupBox>
+                            <GroupBox Header="Eingang Spectate (Multiplayer-Verkehr)">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="170" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition />
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Text="Modus:" Style="{StaticResource Label}" />
+                                    <ComboBox Grid.Column="1" ItemsSource="{x:Static vm:MainViewModel.SpectateModes}" SelectedItem="{Binding Settings.Spectate.Mode}" Width="120" HorizontalAlignment="Left" />
+                                    <TextBlock Grid.Row="1" Text="Datei (leer = Standard):" Style="{StaticResource Label}" />
+                                    <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Settings.Spectate.FilePath}" />
+                                    <TextBlock Grid.Row="2" Text="HTTP-URL:" Style="{StaticResource Label}" />
+                                    <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding Settings.Spectate.HttpUrl}" />
+                                    <TextBlock Grid.Row="3" Text="Eigene Wettbewerbskennung:" Style="{StaticResource Label}" />
+                                    <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal">
+                                        <TextBox Text="{Binding Settings.Spectate.OwnCn}" Width="80" Margin="0,0,10,0" />
+                                        <CheckBox Content="sonst automatisch erkennen („selected“ bzw. Position)" IsChecked="{Binding Settings.Spectate.AutoDetectOwnShip}" />
+                                    </StackPanel>
+                                    <TextBlock Grid.Row="4" Text="Max. Entfernung [km]:" Style="{StaticResource Label}" />
+                                    <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding Settings.Spectate.MaxRangeKm}" Width="80" HorizontalAlignment="Left" />
+                                    <StackPanel Grid.Row="5" Grid.Column="1" Orientation="Horizontal">
+                                        <CheckBox Content="Positionen zwischen Updates hochrechnen" IsChecked="{Binding Settings.Spectate.Extrapolate}" Margin="0,4,20,4" />
+                                        <CheckBox Content="CN an FLARM-ID anhängen (ID!CN)" IsChecked="{Binding Settings.Spectate.AppendCnToFlarmId}" />
+                                    </StackPanel>
+                                    <CheckBox Grid.Row="6" Grid.Column="1" Content="Eigene Position aus Spectate verwenden, wenn kein NMEA ankommt (Betrieb ohne COM-Port, 1 Hz)"
+                                              IsChecked="{Binding Settings.Spectate.UseAsPositionFallback}" />
+                                </Grid>
+                            </GroupBox>
+                            <GroupBox Header="Ausgänge">
+                                <StackPanel>
+                                    <DataGrid ItemsSource="{Binding Outputs}" SelectedItem="{Binding SelectedOutput}" IsReadOnly="False" MinHeight="80">
+                                        <DataGrid.Columns>
+                                            <DataGridCheckBoxColumn Header="aktiv" Binding="{Binding Enabled, UpdateSourceTrigger=PropertyChanged}" Width="45" />
+                                            <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="200" />
+                                            <DataGridComboBoxColumn Header="Typ" ItemsSource="{x:Static vm:MainViewModel.OutputKinds}" SelectedItemBinding="{Binding Kind}" Width="95" />
+                                            <DataGridTextColumn Header="Host (Client/UDP)" Binding="{Binding Host}" Width="130" />
+                                            <DataGridTextColumn Header="Port" Binding="{Binding Port}" Width="60" />
+                                            <DataGridComboBoxColumn Header="Profil" ItemsSource="{x:Static vm:MainViewModel.Presets}" SelectedItemBinding="{Binding Preset}" Width="130" />
+                                            <DataGridCheckBoxColumn Header="Wind „nach“" Binding="{Binding Profile.WindDirectionTo, UpdateSourceTrigger=PropertyChanged}" Width="80" />
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                    <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                        <Button Content="Ausgang hinzufügen" Command="{Binding AddOutputCommand}" />
+                                        <Button Content="Ausgang entfernen" Command="{Binding RemoveOutputCommand}" />
+                                    </StackPanel>
+                                    <GroupBox Header="Sätze des Profils „Custom“ (ausgewählter Ausgang)" Margin="0,8,0,0"
+                                              DataContext="{Binding SelectedOutput.Profile}">
+                                        <WrapPanel>
+                                            <CheckBox Content="Condor-NMEA roh durchreichen" IsChecked="{Binding RawPassthrough}" Margin="0,4,16,4" />
+                                            <CheckBox Content="GPRMC/GPGGA" IsChecked="{Binding Gps}" Margin="0,4,16,4" />
+                                            <CheckBox Content="LXWP0" IsChecked="{Binding Lxwp0}" Margin="0,4,16,4" />
+                                            <CheckBox Content="LXWP2 (MC)" IsChecked="{Binding Lxwp2}" Margin="0,4,16,4" />
+                                            <CheckBox Content="OpenVario POV" IsChecked="{Binding OpenVario}" Margin="0,4,16,4" />
+                                            <CheckBox Content="FLARM PFLAU/PFLAA" IsChecked="{Binding Flarm}" Margin="0,4,16,4" />
+                                            <CheckBox Content="FLARM-Namen PFLAM" IsChecked="{Binding FlarmNames}" Margin="0,4,16,4" />
+                                        </WrapPanel>
+                                    </GroupBox>
+                                    <TextBlock Style="{StaticResource Hint}">
+                                        Profile: XCSoarCondor3 = GPS + LXWP0 + FLARM (Treiber „Condor Soaring Simulator 3“) · RawPlusFlarm = Condor-NMEA unverändert + FLARM ·
+                                        OpenVario = $POV für ein zweites XCSoar-Gerät mit Treiber „OpenVario“ · FlarmOnly · Custom = Auswahl oben.
+                                        Typ TcpServer: XCSoar verbindet sich als „TCP-Client“. TcpClient: Condor2NMEA verbindet sich zu XCSoar („TCP-Port“, z. B. 4353).
+                                    </TextBlock>
+                                </StackPanel>
+                            </GroupBox>
+                            <GroupBox Header="Raten und Aufzeichnung">
+                                <StackPanel>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="GPS [Hz]:" Style="{StaticResource Label}" />
+                                        <TextBox Text="{Binding Settings.Rates.GpsHz}" Width="50" Margin="0,0,16,0" />
+                                        <TextBlock Text="Vario [Hz]:" Style="{StaticResource Label}" />
+                                        <TextBox Text="{Binding Settings.Rates.VarioHz}" Width="50" Margin="0,0,16,0" />
+                                        <TextBlock Text="FLARM [Hz]:" Style="{StaticResource Label}" />
+                                        <TextBox Text="{Binding Settings.Rates.FlarmHz}" Width="50" Margin="0,0,16,0" />
+                                        <TextBlock Text="FLARM-Namen alle [s]:" Style="{StaticResource Label}" />
+                                        <TextBox Text="{Binding Settings.Rates.FlarmNamesIntervalSeconds}" Width="50" />
+                                    </StackPanel>
+                                    <CheckBox Content="Alle Eingangsdaten aufzeichnen (für Fehlersuche/Wiedergabe, %APPDATA%\Condor2NMEA\recordings)"
+                                              IsChecked="{Binding Settings.Recording.Enabled}" />
+                                    <CheckBox Content="Brücke beim Programmstart automatisch starten" IsChecked="{Binding Settings.AutoStart}" />
+                                </StackPanel>
+                            </GroupBox>
+                        </StackPanel>
+                    </ScrollViewer>
+                </DockPanel>
+            </TabItem>
+        </TabControl>
+    </DockPanel>
+</Window>
