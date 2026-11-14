@@ -20,6 +20,7 @@ public sealed partial class OutputEditor : ObservableObject
     public static IReadOnlyList<Option<ProfilePreset>> PresetOptions { get; } = new[]
     {
         new Option<ProfilePreset>(ProfilePreset.XCSoarCondor3, "XCSoar / LK8000 – GPS, Vario, Wind und FLARM-Verkehr"),
+        new Option<ProfilePreset>(ProfilePreset.Cloudbase, "Cloudbase – alles inkl. Netto, Lage, MC, Ballast, Rennen ($PCBC)"),
         new Option<ProfilePreset>(ProfilePreset.RawPlusFlarm, "Condor-NMEA unverändert + FLARM-Verkehr"),
         new Option<ProfilePreset>(ProfilePreset.Raw, "Condor-NMEA unverändert"),
         new Option<ProfilePreset>(ProfilePreset.OpenVario, "OpenVario – zweites XCSoar-Gerät für Vario/G-Last"),
@@ -94,11 +95,12 @@ public sealed partial class OutputEditor : ObservableObject
     public bool OpenVario { get => Settings.Profile.OpenVario; set { Settings.Profile.OpenVario = value; OnPropertyChanged(); } }
     public bool Flarm { get => Settings.Profile.Flarm; set { Settings.Profile.Flarm = value; OnPropertyChanged(); } }
     public bool FlarmNames { get => Settings.Profile.FlarmNames; set { Settings.Profile.FlarmNames = value; OnPropertyChanged(); } }
+    public bool Cloudbase { get => Settings.Profile.Cloudbase; set { Settings.Profile.Cloudbase = value; OnPropertyChanged(); } }
     public bool WindDirectionTo { get => Settings.Profile.WindDirectionTo; set { Settings.Profile.WindDirectionTo = value; OnPropertyChanged(); } }
 
     private void NotifyFlags()
     {
-        foreach (var n in new[] { nameof(RawPassthrough), nameof(Gps), nameof(Lxwp0), nameof(Lxwp2), nameof(OpenVario), nameof(Flarm), nameof(FlarmNames) })
+        foreach (var n in new[] { nameof(RawPassthrough), nameof(Gps), nameof(Lxwp0), nameof(Lxwp2), nameof(OpenVario), nameof(Flarm), nameof(FlarmNames), nameof(Cloudbase) })
             OnPropertyChanged(n);
     }
 }

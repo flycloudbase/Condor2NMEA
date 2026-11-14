@@ -97,6 +97,7 @@
                                         <CheckBox Content="OpenVario POV" IsChecked="{Binding OpenVario}" Margin="0,0,16,6" />
                                         <CheckBox Content="FLARM-Verkehr" IsChecked="{Binding Flarm}" Margin="0,0,16,6" />
                                         <CheckBox Content="FLARM-Namen" IsChecked="{Binding FlarmNames}" Margin="0,0,16,6" />
+                                        <CheckBox Content="Cloudbase ($PCBC)" IsChecked="{Binding Cloudbase}" Margin="0,0,16,6" />
                                     </WrapPanel>
                                     <CheckBox Margin="0,10,0,0" IsChecked="{Binding WindDirectionTo}"
                                               Content="Wind als „weht nach“ senden (nur für den alten XCSoar-Treiber „Condor Soaring Simulator“)" />

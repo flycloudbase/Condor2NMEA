@@ -226,7 +226,7 @@
                             </StackPanel>
                         </Border>
                         <TextBlock Style="{StaticResource Caption}" Margin="0,10,0,0"
-                                   Text="Weitere Geräte, andere Ports oder den umgekehrten Verbindungsweg legst du unter Einstellungen → Ausgänge an." />
+                                   Text="Cloudbase: unter Einstellungen › Geräte ein Gerät „Condor“ (TCP) mit dieser IP-Adresse und Port 4354 anlegen – dort kommen zusätzlich Netto, Lage, MacCready, Ballast und Rennstand an. Weitere Geräte oder andere Ports legst du unter Einstellungen → Ausgänge an." />
                     </StackPanel>
                 </Grid>
             </ui:Card>

@@ -108,6 +108,13 @@ public sealed class TrafficTracker
         return _autoOwnId is null ? null : _pilots.FirstOrDefault(p => p.Id == _autoOwnId);
     }
 
+    /// <summary>The own glider as currently identified, without updating the automatic detection.</summary>
+    public SpectatePilot? CurrentOwnShip(GeoPoint? livePosition = null, double? liveAltitude = null)
+    {
+        lock (_lock)
+            return _pilots.Count == 0 ? null : FindOwnShipLocked(livePosition, liveAltitude, updateAuto: false);
+    }
+
     /// <summary>All pilots of the latest snapshot (for display).</summary>
     public IReadOnlyList<SpectatePilot> Pilots { get { lock (_lock) return _pilots; } }
 

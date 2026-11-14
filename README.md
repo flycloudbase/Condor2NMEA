@@ -17,6 +17,7 @@ sodass HW VSP3 o. ä. nicht mehr nötig ist.
 | FLARM | `$PFLAU`, `$PFLAA` (ID `HEX!CN`), `$PFLAM` (Pilot, CN, Kennzeichen, Typ) |
 | OpenVario | `$POV` (TE, unkompensiert, TAS, G-Last) für ein zweites XCSoar-Gerät |
 | Raw | Condor-NMEA unverändert |
+| Cloudbase | eigene Sätze `$PCBC,DATA/INFO/EVENT` mit Netto, IAS, Lage, G-Last, Höhe über Grund, MacCready, Ballast, Klappen, Funkfrequenz, Rennstand und Condor-Meldungen – siehe [docs/PCBC.md](docs/PCBC.md) |
 
 ## Schnellstart
 

@@ -17,5 +17,12 @@ internal static class Inv
 
     public static double? Double(string? s) => TryDouble(s, out var v) ? v : null;
 
-    public static string F(double value, int decimals) => value.ToString("F" + decimals, C);
+    /// <summary>Fixed-point text; never "-0.00" (negative values that round to zero are written as zero).</summary>
+    public static string F(double value, int decimals)
+    {
+        var r = Math.Round(value, decimals, MidpointRounding.AwayFromZero);
+        if (r == 0)
+            r = 0; // turns -0.0 into +0.0
+        return r.ToString("F" + decimals, C);
+    }
 }
