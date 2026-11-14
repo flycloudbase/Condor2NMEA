@@ -102,7 +102,7 @@ public partial class MainWindow : FluentWindow
                     System.Windows.Controls.Primitives.ButtonBase b => $"Button \"{b.Content}\"",
                     System.Windows.Controls.TextBox tb => $"TextBox \"{Trim(tb.Text)}\"",
                     System.Windows.Controls.ComboBox cb => $"ComboBox \"{Trim(cb.Text)}\"",
-                    System.Windows.Controls.TextBlock t when t.TemplatedParent is null => $"Text \"{Trim(t.Text)}\"",
+                    System.Windows.Controls.TextBlock t when t.TemplatedParent is null or System.Windows.Controls.ContentPresenter => $"Text \"{Trim(t.Text)}\"",
                     System.Windows.Controls.ScrollViewer sv => $"ScrollViewer extent={sv.ExtentHeight:0} viewport={sv.ViewportHeight:0}",
                     Controls.RadarView => "RadarView",
                     Controls.StepBadge sbg => $"StepBadge done={sbg.IsDone}",
@@ -115,7 +115,7 @@ public partial class MainWindow : FluentWindow
                     try
                     {
                         var pos = fe.TransformToAncestor(root).Transform(new Point(0, 0));
-                        var clipped = fe is System.Windows.Controls.TextBlock tbk && tbk.DesiredSize.Width > tbk.ActualWidth + 1 ? "  [GEKÜRZT]" : "";
+                        var clipped = fe is System.Windows.Controls.TextBlock tbk && tbk.DesiredSize.Width - tbk.Margin.Left - tbk.Margin.Right > tbk.ActualWidth + 1 ? "  [GEKÜRZT]" : "";
                         sb.AppendLine($"{new string(' ', Math.Min(depth, 30))}{label}  @({pos.X:0},{pos.Y:0}) {fe.ActualWidth:0}x{fe.ActualHeight:0}{clipped}");
                         lines++;
                     }

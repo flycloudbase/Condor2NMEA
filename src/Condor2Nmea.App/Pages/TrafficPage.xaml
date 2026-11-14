@@ -54,13 +54,11 @@
                               HeadersVisibility="Column" CanUserAddRows="False" GridLinesVisibility="None"
                               Visibility="{Binding HasTraffic, Converter={StaticResource BoolToVisibility}}">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="CN" Binding="{Binding Cn}" Width="60" />
-                            <DataGridTextColumn Header="Pilot" Binding="{Binding Pilot}" Width="2*" />
-                            <DataGridTextColumn Header="Flugzeug" Binding="{Binding Plane}" Width="1.5*" />
-                            <DataGridTextColumn Header="Entf." Binding="{Binding Distance}" Width="75" />
-                            <DataGridTextColumn Header="Peilung" Binding="{Binding Bearing}" Width="70" />
-                            <DataGridTextColumn Header="Höhe rel." Binding="{Binding Vertical}" Width="80" />
-                            <DataGridTextColumn Header="Fahrt" Binding="{Binding Speed}" Width="85" />
+                            <DataGridTextColumn Header="CN" Binding="{Binding Cn}" Width="55" />
+                            <DataGridTextColumn Header="Pilot" Binding="{Binding Pilot}" Width="2*" MinWidth="90" />
+                            <DataGridTextColumn Header="Flugzeug" Binding="{Binding Plane}" Width="*" MinWidth="70" />
+                            <DataGridTextColumn Header="Entf." Binding="{Binding Distance}" Width="70" />
+                            <DataGridTextColumn Header="Höhe" Binding="{Binding Vertical}" Width="70" />
                             <DataGridTextColumn Header="Vario" Binding="{Binding Vario}" Width="80" />
                         </DataGrid.Columns>
                     </DataGrid>
