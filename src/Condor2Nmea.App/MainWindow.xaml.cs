@@ -63,7 +63,8 @@ public partial class MainWindow : FluentWindow
             };
             foreach (var (type, name) in pages)
             {
-                if (!RootNavigation.Navigate(type))
+                // Navigate returns false when the page is already shown
+                if (!RootNavigation.Navigate(type) && RootNavigation.SelectedItem?.TargetPageType != type)
                     throw new InvalidOperationException($"Navigation zu {type.Name} fehlgeschlagen");
                 await Task.Delay(1500);
                 await Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ContextIdle);
