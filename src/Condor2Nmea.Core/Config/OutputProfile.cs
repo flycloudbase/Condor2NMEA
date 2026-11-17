@@ -13,6 +13,8 @@ public enum ProfilePreset
     OpenVario,
     /// <summary>Only FLARM traffic.</summary>
     FlarmOnly,
+    /// <summary>GPS + LXWP0 + FLARM + $PCBC for Cloudbase (flycloudbase/cloudbase).</summary>
+    Cloudbase,
 }
 
 /// <summary>Which sentences an output sends.</summary>
@@ -27,6 +29,8 @@ public sealed class OutputProfile
     public bool Flarm { get; set; } = true;
     /// <summary>Send $PFLAM name messages (pilot name, CN, registration, type).</summary>
     public bool FlarmNames { get; set; } = true;
+    /// <summary>Proprietary $PCBC sentences with all extra Condor data (see docs/PCBC.md).</summary>
+    public bool Cloudbase { get; set; }
     /// <summary>LXWP0 wind as "blowing to" (XCSoar driver "Condor Soaring Simulator" for Condor 1/2).</summary>
     public bool WindDirectionTo { get; set; }
 
@@ -37,6 +41,7 @@ public sealed class OutputProfile
         ProfilePreset.Raw => new() { RawPassthrough = true, Gps = false, Lxwp0 = false, Flarm = false, FlarmNames = false },
         ProfilePreset.OpenVario => new() { Gps = false, Lxwp0 = false, OpenVario = true, Flarm = false, FlarmNames = false },
         ProfilePreset.FlarmOnly => new() { Gps = false, Lxwp0 = false, Flarm = true, FlarmNames = true },
+        ProfilePreset.Cloudbase => new() { Gps = true, Lxwp0 = true, Lxwp2 = true, Flarm = true, FlarmNames = true, Cloudbase = true },
         _ => new(),
     };
 

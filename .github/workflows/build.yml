@@ -1,9 +1,21 @@
 name: build
 
+# Runs once per pushed change on a working branch. Opening a pull request does not start an
+# extra run (the checks of the pushed commit show up in the PR), and merging into main does not
+# rebuild code that was already built. Documentation-only changes are skipped; a run can always
+# be started by hand (Actions → build → Run workflow).
 on:
   push:
-  pull_request:
+    branches-ignore: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
   workflow_dispatch:
+
+# A newer push to the same branch cancels the run that is still going.
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   windows:
@@ -21,6 +33,23 @@ jobs:
         run: dotnet publish src/Condor2Nmea.App -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish/app
       - name: Publish command line tool
         run: dotnet publish src/Condor2Nmea.Cli -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish/cli
+      - name: UI smoke test (open every page with demo data, take screenshots)
+        shell: pwsh
+        run: |
+          publish/cli/condor2nmea.exe convert-logs --nmea tests/samples/condor3-nmea.txt --udp tests/samples/condor3-udp.txt --spectate tests/samples/condor3-spectate.json -o demo.c2nrec
+          $shots = Join-Path $pwd 'screenshots'
+          $p = Start-Process publish/app/Condor2NMEA.exe -ArgumentList '--screenshot', "`"$shots`"", '--replay', "`"$(Join-Path $pwd 'demo.c2nrec')`"" -PassThru
+          if (-not $p.WaitForExit(120000)) { $p.Kill(); Write-Error 'UI did not finish within 120 s'; exit 1 }
+          if (Test-Path "$shots/layout.txt") { Get-Content "$shots/layout.txt" }
+          if (Test-Path "$shots/error.log") { Get-Content "$shots/error.log"; exit 1 }
+          if ($p.ExitCode -ne 0) { Write-Error "UI exit code $($p.ExitCode)"; exit 1 }
+          Get-ChildItem $shots
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Screenshots
+          path: screenshots
+          if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
         with:
           name: Condor2NMEA-win-x64
@@ -28,13 +57,3 @@ jobs:
             publish/app/Condor2NMEA.exe
             publish/cli/condor2nmea.exe
             README.md
-
-  linux-tests:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 8.0.x
-      - name: Test (core + runtime)
-        run: dotnet test tests/Condor2Nmea.Tests

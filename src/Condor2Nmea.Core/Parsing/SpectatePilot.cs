@@ -25,6 +25,8 @@ public sealed record SpectatePilot
     public string Score { get; init; } = "";
     public string Distance { get; init; } = "";
     public string AverageSpeed { get; init; } = "";
+    /// <summary>Race time as shown by Condor, e.g. "01:11:51".</summary>
+    public string TaskTime { get; init; } = "";
     /// <summary>"selected" – the pilot currently selected in Condor (true for the own glider when flying).</summary>
     public bool Selected { get; init; }
 

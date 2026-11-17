@@ -17,6 +17,8 @@ public sealed class TcpClientOutput : NmeaOutput
 
     public override string Connections => $"{Settings.Host}:{Settings.Port} – {_state}";
 
+    public override int ClientCount => _queue is null ? 0 : 1;
+
     public override void Send(IReadOnlyList<string> sentences)
     {
         var q = _queue;

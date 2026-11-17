@@ -96,6 +96,7 @@ public static class SpectateParser
             Score = Str(e, "score"),
             Distance = Str(e, "dist"),
             AverageSpeed = Str(e, "averagespeed"),
+            TaskTime = Str(e, "time"),
             Selected = Str(e, "selected").Equals("true", StringComparison.OrdinalIgnoreCase),
         };
     }

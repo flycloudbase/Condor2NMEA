@@ -17,6 +17,14 @@ public sealed class AppSettings
             Preset = ProfilePreset.XCSoarCondor3,
             Profile = OutputProfile.FromPreset(ProfilePreset.XCSoarCondor3),
         },
+        new OutputSettings
+        {
+            Name = "Cloudbase (TCP-Server 4354)",
+            Kind = OutputKind.TcpServer,
+            Port = 4354,
+            Preset = ProfilePreset.Cloudbase,
+            Profile = OutputProfile.FromPreset(ProfilePreset.Cloudbase),
+        },
     };
     public Com0comSettings Com0com { get; set; } = new();
     public RecordingSettings Recording { get; set; } = new();
@@ -84,6 +92,8 @@ public sealed class RateSettings
     public double GpsHz { get; set; } = 1;
     public double VarioHz { get; set; } = 2;
     public double FlarmHz { get; set; } = 1;
+    /// <summary>$PCBC,INFO (own glider and race) is repeated this often.</summary>
+    public double CloudbaseInfoIntervalSeconds { get; set; } = 5;
     /// <summary>$PFLAM name messages for every target are repeated this often.</summary>
     public double FlarmNamesIntervalSeconds { get; set; } = 10;
 }

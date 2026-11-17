@@ -22,25 +22,19 @@ public sealed partial class ComPortViewModel : ObservableObject
 
     public ObservableCollection<Com0comPair> Pairs { get; } = new();
 
-    public bool HasPairs => Pairs.Count > 0;
-
     [ObservableProperty] private Com0comPair? _selectedPair;
     [ObservableProperty] private int _comNumber;
     [ObservableProperty] private string _installStatus = "";
     [ObservableProperty] private bool _isInstalled;
     [ObservableProperty] private bool _busy;
-    [ObservableProperty] private string _presentPorts = "";
+    [ObservableProperty] private string _errorText = "";
 
-    public string Com0comPath
-    {
-        get => _main.Settings.Com0com.InstallPath;
-        set
-        {
-            _main.Settings.Com0com.InstallPath = value;
-            OnPropertyChanged();
-            _ = RefreshAsync();
-        }
-    }
+    /// <summary>A pair exists and the NMEA input reads its internal side.</summary>
+    [ObservableProperty] private bool _portReady;
+    /// <summary>Name Condor has to use, e.g. "COM9".</summary>
+    [ObservableProperty] private string _condorPortName = "COMx";
+
+    public bool HasPairs => Pairs.Count > 0;
 
     private Com0comManager Manager => new(_main.Settings.Com0com.InstallPath);
 
@@ -53,18 +47,17 @@ public sealed partial class ComPortViewModel : ObservableObject
     [RelayCommand]
     public async Task RefreshAsync()
     {
+        ErrorText = "";
         var mgr = Manager;
         IsInstalled = mgr.IsInstalled;
-        PresentPorts = string.Join(", ", SafePresentPorts());
         if (!IsInstalled)
         {
-            InstallStatus = "com0com ist nicht installiert. Bitte das signierte Setup herunterladen und installieren, " +
-                            "dabei alle Optionen zum Anlegen von Beispiel-Ports abwählen.";
+            InstallStatus = "com0com ist noch nicht installiert.";
             Pairs.Clear();
-            OnPropertyChanged(nameof(HasPairs));
+            UpdateReady();
             return;
         }
-        InstallStatus = $"com0com gefunden: {mgr.InstallDirectory}";
+        InstallStatus = $"com0com ist installiert ({mgr.InstallDirectory}).";
         try
         {
             Busy = true;
@@ -72,57 +65,58 @@ public sealed partial class ComPortViewModel : ObservableObject
             Pairs.Clear();
             foreach (var p in pairs)
                 Pairs.Add(p);
-            SelectedPair = Pairs.FirstOrDefault(p => string.Equals(p.AppPort, _main.Settings.Serial.PortName, StringComparison.OrdinalIgnoreCase))
-                           ?? Pairs.FirstOrDefault();
+            SelectedPair = Pairs.FirstOrDefault(p => IsInput(p)) ?? Pairs.FirstOrDefault();
         }
         catch (Exception ex)
         {
-            InstallStatus = $"setupc.exe list fehlgeschlagen: {ex.Message}";
+            ErrorText = ex.Message;
         }
         finally
         {
             Busy = false;
-            OnPropertyChanged(nameof(HasPairs));
             ComNumber = SafeSuggest();
+            UpdateReady();
         }
     }
 
-    private static IEnumerable<string> SafePresentPorts()
+    private bool IsInput(Com0comPair p) =>
+        string.Equals(p.AppPort, _main.Settings.Serial.PortName, StringComparison.OrdinalIgnoreCase);
+
+    private void UpdateReady()
     {
-        try { return ComPortRegistry.GetPresentPorts(); }
-        catch (Exception) { return Array.Empty<string>(); }
+        var input = Pairs.FirstOrDefault(IsInput);
+        PortReady = input is not null && _main.Settings.Serial.Enabled;
+        CondorPortName = input?.CondorPort ?? Pairs.FirstOrDefault()?.CondorPort ?? $"COM{ComNumber}";
+        OnPropertyChanged(nameof(HasPairs));
     }
 
     [RelayCommand]
     private async Task CreatePair()
     {
-        var used = ComPortRegistry.GetUsedComNumbers();
-        if (used.Contains(ComNumber) &&
-            MessageBox.Show($"COM{ComNumber} ist bereits belegt oder reserviert. Trotzdem verwenden?", "COM-Port",
-                MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
-            return;
-
+        ErrorText = "";
         try
         {
+            if (ComPortRegistry.GetUsedComNumbers().Contains(ComNumber) &&
+                MessageBox.Show($"COM{ComNumber} ist bereits belegt oder reserviert. Trotzdem verwenden?", "Virtueller COM-Port",
+                    MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+                return;
+
             Busy = true;
             var pair = await Manager.CreatePairAsync(ComNumber);
-            UsePairCore(pair);
+            await UseAsInput(pair);
             _main.MarkPortCreated();
             await RefreshAsync();
-            var running = CondorInstallation.IsCondorRunning();
-            MessageBox.Show(
-                $"Virtueller Port angelegt.\n\nIn Condor unter Setup → Options → NMEA output „{pair.CondorPort}“ wählen.\n" +
-                $"Condor2NMEA liest die Gegenseite „{pair.AppPort}“." +
-                (running ? "\n\nCondor läuft bereits – bitte Condor neu starten, damit der Port erscheint." : ""),
-                "COM-Port", MessageBoxButton.OK, MessageBoxImage.Information);
+            if (CondorInstallation.IsCondorRunning())
+                MessageBox.Show($"Der Port {pair.CondorPort} wurde angelegt.\n\nCondor läuft bereits – bitte Condor neu starten, damit der Port in der Liste erscheint.",
+                    "Virtueller COM-Port", MessageBoxButton.OK, MessageBoxImage.Information);
         }
         catch (OperationCanceledException)
         {
-            // UAC prompt cancelled
+            ErrorText = "Die Administrator-Abfrage wurde abgebrochen.";
         }
         catch (Exception ex)
         {
-            MessageBox.Show(ex.Message, "COM-Port anlegen fehlgeschlagen", MessageBoxButton.OK, MessageBoxImage.Error);
+            ErrorText = ex.Message;
         }
         finally
         {
@@ -131,12 +125,15 @@ public sealed partial class ComPortViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task RemovePair()
+    private async Task RemovePair(Com0comPair? pair)
     {
-        if (SelectedPair is not { } pair)
+        pair ??= SelectedPair;
+        if (pair is null)
             return;
-        if (MessageBox.Show($"Paar {pair} entfernen?", "COM-Port", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
+        if (MessageBox.Show($"Den virtuellen Port {pair.CondorPort} ↔ {pair.AppPort} entfernen?", "Virtueller COM-Port",
+                MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
             return;
+        ErrorText = "";
         try
         {
             Busy = true;
@@ -150,10 +147,11 @@ public sealed partial class ComPortViewModel : ObservableObject
         }
         catch (OperationCanceledException)
         {
+            ErrorText = "Die Administrator-Abfrage wurde abgebrochen.";
         }
         catch (Exception ex)
         {
-            MessageBox.Show(ex.Message, "COM-Port entfernen fehlgeschlagen", MessageBoxButton.OK, MessageBoxImage.Error);
+            ErrorText = ex.Message;
         }
         finally
         {
@@ -162,11 +160,20 @@ public sealed partial class ComPortViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task UsePair()
+    private async Task UsePair(Com0comPair? pair)
     {
-        if (SelectedPair is not { } pair)
-            return;
-        UsePairCore(pair);
+        pair ??= SelectedPair;
+        if (pair is not null)
+            await UseAsInput(pair);
+    }
+
+    private async Task UseAsInput(Com0comPair pair)
+    {
+        _main.Settings.Serial.PortName = pair.AppPort;
+        _main.Settings.Serial.Enabled = true;
+        _main.SaveSettings();
+        _main.NotifySettingsChanged();
+        UpdateReady();
         if (_main.IsRunning)
         {
             await _main.StopEngine();
@@ -174,27 +181,21 @@ public sealed partial class ComPortViewModel : ObservableObject
         }
     }
 
-    private void UsePairCore(Com0comPair pair)
-    {
-        _main.Settings.Serial.PortName = pair.AppPort;
-        _main.Settings.Serial.Enabled = true;
-        _main.SaveSettings();
-        _main.StatusText = $"NMEA-Eingang: {pair.AppPort} (Condor schreibt auf {pair.CondorPort})";
-        OnPropertyChanged(nameof(CurrentInput));
-        _main.NotifySettingsChanged();
-    }
-
-    public string CurrentInput => _main.Settings.Serial.PortName;
-
     [RelayCommand]
     private void BrowseCom0com()
     {
         var dlg = new Microsoft.Win32.OpenFolderDialog { Title = "com0com-Ordner (mit setupc.exe) wählen" };
         if (dlg.ShowDialog() == true)
-            Com0comPath = dlg.FolderName;
+        {
+            _main.Settings.Com0com.InstallPath = dlg.FolderName;
+            _ = RefreshAsync();
+        }
     }
 
     [RelayCommand]
-    private void OpenDownload() =>
-        Process.Start(new ProcessStartInfo(Com0comManager.DownloadUrl) { UseShellExecute = true });
+    private void OpenDownload()
+    {
+        try { Process.Start(new ProcessStartInfo(Com0comManager.DownloadUrl) { UseShellExecute = true }); }
+        catch (Exception ex) { ErrorText = ex.Message; }
+    }
 }

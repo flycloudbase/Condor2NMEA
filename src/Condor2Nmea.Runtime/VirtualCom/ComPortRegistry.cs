@@ -1,4 +1,3 @@
-using System.Runtime.Versioning;
 using System.Text.RegularExpressions;
 using Microsoft.Win32;
 
@@ -9,14 +8,6 @@ public static partial class ComPortRegistry
 {
     /// <summary>Port names currently present (HKLM\HARDWARE\DEVICEMAP\SERIALCOMM).</summary>
     public static IReadOnlyList<string> GetPresentPorts()
-    {
-        if (!OperatingSystem.IsWindows())
-            return Array.Empty<string>();
-        return GetPresentPortsWindows();
-    }
-
-    [SupportedOSPlatform("windows")]
-    private static IReadOnlyList<string> GetPresentPortsWindows()
     {
         using var key = Registry.LocalMachine.OpenSubKey(@"HARDWARE\DEVICEMAP\SERIALCOMM");
         if (key is null)
@@ -38,12 +29,10 @@ public static partial class ComPortRegistry
         foreach (var p in GetPresentPorts())
             if (ComNumber(p) is { } n)
                 used.Add(n);
-        if (OperatingSystem.IsWindows())
-            AddComDb(used);
+        AddComDb(used);
         return used;
     }
 
-    [SupportedOSPlatform("windows")]
     private static void AddComDb(HashSet<int> used)
     {
         try

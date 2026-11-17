@@ -12,6 +12,8 @@ public sealed class UdpOutput : NmeaOutput
 
     public override string Connections => $"→ {Settings.Host}:{Settings.Port}";
 
+    public override int ClientCount => -1;
+
     public override void Send(IReadOnlyList<string> sentences)
     {
         var c = _client;

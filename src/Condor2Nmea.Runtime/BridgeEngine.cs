@@ -51,6 +51,11 @@ public sealed class BridgeEngine : IInputSink, IAsyncDisposable
     public string? RecordingPath => _recorder?.Path;
 
     public IReadOnlyList<InputSource> Sources => _sources;
+
+    /// <summary>Statistics per kind of data, independent of where it came from (live or replay).</summary>
+    public ChannelStats NmeaInput { get; } = new("NMEA");
+    public ChannelStats UdpInput { get; } = new("UDP");
+    public ChannelStats SpectateInput { get; } = new("Spectate");
     public IReadOnlyList<NmeaOutput> Outputs => _outputs;
 
     /// <summary>Raised from worker threads.</summary>
@@ -145,6 +150,7 @@ public sealed class BridgeEngine : IInputSink, IAsyncDisposable
     public void OnNmeaLine(string line)
     {
         line = line.Trim();
+        NmeaInput.OnMessage(DateTime.UtcNow);
         _recorder?.Write(RecordingFormat.Nmea, line);
         Log(MonitorDirection.In, "NMEA", line);
 
@@ -163,6 +169,7 @@ public sealed class BridgeEngine : IInputSink, IAsyncDisposable
 
     public void OnUdpPacket(string packet)
     {
+        UdpInput.OnMessage(DateTime.UtcNow);
         _recorder?.Write(RecordingFormat.Udp, packet);
         var now = DateTime.UtcNow;
         UdpPacketParser.Apply(packet, State, now);
@@ -176,6 +183,7 @@ public sealed class BridgeEngine : IInputSink, IAsyncDisposable
 
     public void OnSpectateJson(string json, DateTime sampleTimeUtc)
     {
+        SpectateInput.OnMessage(DateTime.UtcNow);
         _recorder?.Write(RecordingFormat.Spectate, json);
         var pilots = SpectateParser.TryParse(json);
         if (pilots is null)
@@ -286,6 +294,10 @@ public sealed class BridgeEngine : IInputSink, IAsyncDisposable
             _pendingNames = names;
         }
 
+        List<string>? cloudbaseLines = null;
+        if (_outputs.Any(o => o.Profile.Cloudbase))
+            cloudbaseLines = CloudbaseLines(now, snap, vario);
+
         var any = false;
         foreach (var o in _outputs)
         {
@@ -298,6 +310,7 @@ public sealed class BridgeEngine : IInputSink, IAsyncDisposable
                 if (p.Lxwp2 && lxwp2 is not null) lines.Add(lxwp2);
                 if (p.OpenVario && pov is not null) lines.Add(pov);
             }
+            if (cloudbaseLines is not null && p.Cloudbase) lines.AddRange(cloudbaseLines);
             if (flarmLines is not null && p.Flarm)
             {
                 if (p.FlarmNames) lines.AddRange(_pendingNames);
@@ -318,6 +331,8 @@ public sealed class BridgeEngine : IInputSink, IAsyncDisposable
                 if (lxwp0 is not null) Log(MonitorDirection.Out, "Ausgabe", lxwp0);
                 if (pov is not null && _outputs.Any(o => o.Profile.OpenVario)) Log(MonitorDirection.Out, "Ausgabe", pov);
             }
+            if (cloudbaseLines is not null)
+                foreach (var l in cloudbaseLines) Log(MonitorDirection.Out, "Ausgabe", l);
             if (flarmLines is not null)
             {
                 foreach (var l in _pendingNames) Log(MonitorDirection.Out, "Ausgabe", l);
@@ -327,4 +342,39 @@ public sealed class BridgeEngine : IInputSink, IAsyncDisposable
     }
 
     private List<string> _pendingNames = new();
+
+    // ------------------------------------------------------------------ $PCBC (Cloudbase)
+
+    public static string SoftwareName { get; } =
+        "Condor2NMEA " + (typeof(BridgeEngine).Assembly.GetName().Version?.ToString(3) ?? "");
+
+    private DateTime _nextCloudbaseInfo;
+    private HashSet<string> _hudSeen = new(StringComparer.Ordinal);
+
+    /// <summary>Builds the $PCBC lines due in this tick (only called when an output wants them).</summary>
+    private List<string> CloudbaseLines(DateTime now, FlightSnapshot snap, bool vario)
+    {
+        var lines = new List<string>();
+        if (vario && CloudbaseSentences.Data(snap) is { } data)
+            lines.Add(data);
+
+        if (now >= _nextCloudbaseInfo)
+        {
+            _nextCloudbaseInfo = now + TimeSpan.FromSeconds(Math.Max(1, _settings.Rates.CloudbaseInfoIntervalSeconds));
+            var live = snap.PositionSource is DataSource.Nmea or DataSource.Udp ? snap.Position : null;
+            var own = Traffic.CurrentOwnShip(live, snap.BaroAltitude ?? snap.GpsAltitude);
+            var count = Traffic.PilotCount;
+            lines.Add(CloudbaseSentences.Info(own, count > 0 ? count : null, SoftwareName));
+        }
+
+        // HUD messages: Condor repeats them while they are shown; report each one once
+        var current = (snap.HudMessages ?? "")
+            .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToHashSet(StringComparer.Ordinal);
+        foreach (var message in current)
+            if (!_hudSeen.Contains(message))
+                lines.Add(CloudbaseSentences.Event(snap.TimeOfDay, message));
+        _hudSeen = current;
+        return lines;
+    }
 }

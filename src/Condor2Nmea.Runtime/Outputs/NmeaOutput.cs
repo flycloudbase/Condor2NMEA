@@ -22,6 +22,9 @@ public abstract class NmeaOutput
     /// <summary>Human readable connection info, e.g. "2 Clients: 192.168.0.12:51234, …".</summary>
     public abstract string Connections { get; }
 
+    /// <summary>Number of connected receivers; -1 for connectionless outputs (UDP).</summary>
+    public abstract int ClientCount { get; }
+
     public abstract Task RunAsync(CancellationToken token);
 
     /// <summary>Queues complete sentences (without line ends). Never blocks.</summary>

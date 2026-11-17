@@ -1,6 +1,5 @@
 using System.ComponentModel;
 using System.Runtime.InteropServices;
-using System.Runtime.Versioning;
 using Microsoft.Win32.SafeHandles;
 
 namespace Condor2Nmea.Runtime.Sources;
@@ -8,7 +7,6 @@ namespace Condor2Nmea.Runtime.Sources;
 /// <summary>
 /// Serial port via Win32 API. Opens any device name ("COM5", "CNCB0", ...) as \\.\NAME.
 /// </summary>
-[SupportedOSPlatform("windows")]
 internal sealed class Win32SerialPort : ISerialPortReader
 {
     private readonly SafeFileHandle _handle;
