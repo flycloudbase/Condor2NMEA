@@ -1,10 +1,21 @@
 name: build
 
+# Runs once per pushed change on a working branch. Opening a pull request does not start an
+# extra run (the checks of the pushed commit show up in the PR), and merging into main does not
+# rebuild code that was already built. Documentation-only changes are skipped; a run can always
+# be started by hand (Actions → build → Run workflow).
 on:
   push:
-    branches: [main]
-  pull_request:
+    branches-ignore: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
   workflow_dispatch:
+
+# A newer push to the same branch cancels the run that is still going.
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   windows:

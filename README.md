@@ -63,7 +63,7 @@ dotnet publish src/Condor2Nmea.App -c Release -r win-x64 --self-contained -p:Pub
 ```
 
 Condor2NMEA ist ein reines Windows-Programm (.NET 8, WPF mit [WPF-UI](https://github.com/lepoco/wpfui) im Fluent-Design).
-GitHub Actions baut bei jedem Push und stellt `Condor2NMEA.exe` und `condor2nmea.exe` als Artefakt bereit.
+GitHub Actions baut bei jedem Push auf einen Arbeitsbranch (nicht beim Öffnen eines PRs, nicht beim Merge auf `main`, nicht bei reinen Doku-Änderungen) und stellt `Condor2NMEA.exe` und `condor2nmea.exe` als Artefakt bereit. Von Hand startbar unter Actions → build → Run workflow.
 
 ## Projektstruktur
 
