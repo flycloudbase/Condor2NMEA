@@ -82,7 +82,12 @@ public sealed class SpectateSettings
     public bool AutoDetectOwnShip { get; set; } = true;
     public double MaxRangeKm { get; set; } = 50;
     public bool Extrapolate { get; set; } = true;
-    public bool AppendCnToFlarmId { get; set; } = true;
+    /// <summary>
+    /// Not FLARM ICD conform: "HEXID!CN" in the PFLAA ID (XCSoar extension). Cloudbase and other ICD conform
+    /// readers drop such targets. The competition number is sent via PFLAM anyway. (Replaces the former
+    /// AppendCnToFlarmId, which was on by default.)
+    /// </summary>
+    public bool NonStandardCnInFlarmId { get; set; }
     /// <summary>Use the own glider from Spectate as position source if NMEA is missing.</summary>
     public bool UseAsPositionFallback { get; set; } = true;
 }

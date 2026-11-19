@@ -231,7 +231,7 @@
                         </Grid>
                         <CheckBox Margin="0,12,0,0" Content="Eigenes Flugzeug automatisch erkennen" IsChecked="{Binding Settings.Spectate.AutoDetectOwnShip}" />
                         <CheckBox Content="Positionen zwischen den Updates hochrechnen (flüssigeres Radar)" IsChecked="{Binding Settings.Spectate.Extrapolate}" />
-                        <CheckBox Content="Wettbewerbskennung an FLARM-ID anhängen (XCSoar zeigt sie dann an)" IsChecked="{Binding Settings.Spectate.AppendCnToFlarmId}" />
+                        <CheckBox Content="Wettbewerbskennung an FLARM-ID anhängen (nur XCSoar, nicht FLARM-konform – Cloudbase zeigt den Verkehr dann nicht)" IsChecked="{Binding Settings.Spectate.NonStandardCnInFlarmId}" />
                         <CheckBox Content="Ohne COM-Port die eigene Position aus Spectate verwenden (1 Hz)" IsChecked="{Binding Settings.Spectate.UseAsPositionFallback}" />
                     </StackPanel>
                 </ui:Card>

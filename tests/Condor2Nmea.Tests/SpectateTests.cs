@@ -73,15 +73,16 @@ public class SpectateTests
         Assert.Equal("1002", f[1]);
         Assert.Equal("0", f[2]);
         Assert.Equal("100", f[3]);
-        Assert.Equal("00002A!AB", f[5]);
+        Assert.Equal("2", f[4]);        // IDType: fixed FLARM ID
+        Assert.Equal("00002A", f[5]);   // plain 6-digit hex, ICD conform
         Assert.Equal("90", f[6]);
-        Assert.Equal("40", f[8]);   // 144 km/h = 40 m/s
+        Assert.Equal("40", f[8]);       // 144 km/h = 40 m/s
         Assert.Equal("1.5", f[9]);
-        Assert.Equal("1", f[10]);   // glider
+        Assert.Equal("1", f[10]);       // glider
 
         Assert.Equal("$PFLAU,1,1,2,1,0,,0,,,*4D", FlarmSentences.Pflau(1));
         var names = FlarmSentences.Pflam(t).ToList();
-        Assert.Contains(names, n => n.Contains("PNAME,4572696B612042656973706965") ); // "Erika Beispie" (17 chars max)
+        Assert.Contains(names, n => n.Contains("PNAME,4572696B6120426569737069656C") ); // "Erika Beispiel", UTF-8 hex
         Assert.All(names, n => Assert.Equal(NmeaChecksum.Result.Valid, NmeaChecksum.Verify(n)));
     }
 
