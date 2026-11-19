@@ -26,6 +26,9 @@ public sealed class TrafficTracker
     public double MaxRangeMeters { get; set; } = 50_000;
     /// <summary>Extrapolate other gliders with speed/heading between Spectate updates.</summary>
     public bool Extrapolate { get; set; } = true;
+    /// <summary>The "selected" pilot is only taken as own glider if it is this close to the live position [m].</summary>
+    public const double SelectedMaxDistance = 2000;
+
     /// <summary>Snapshot older than this is treated as "no traffic".</summary>
     public TimeSpan MaxAge { get; set; } = TimeSpan.FromSeconds(10);
 
@@ -72,9 +75,11 @@ public sealed class TrafficTracker
         if (!AutoDetectOwnShip)
             return null;
 
-        // Condor marks the own glider (or, in Spectate! mode, the watched one) with "selected":"True".
+        // Condor marks one pilot with "selected":"True": the own glider, or the one selected in Condor's pilot list /
+        // camera (in Spectate! mode the watched one). With a live position it only counts if it really is here.
         var selected = _pilots.FirstOrDefault(p => p.Selected);
-        if (selected is not null)
+        if (selected is not null &&
+            (livePosition is null || selected.Position is not { } sp || GeoMath.Distance(livePosition.Value, sp) <= SelectedMaxDistance))
             return selected;
         if (livePosition is null && _pilots.Count == 1)
             return _pilots[0];
@@ -146,12 +151,17 @@ public sealed class TrafficTracker
             if (reference is null)
                 return Array.Empty<TrafficTarget>();
 
-            // Vertical reference: always the Spectate altitude of the own ship when known, so that
-            // both altitudes come from the same source (Condor altimeter). Mixing GPS and Spectate
-            // altitudes produced ~40 m offsets in XCSoar.
-            double? refAlt = own?.Altitude ?? liveAlt;
-            if (own?.Altitude is { } oa && own.Vario is { } ov)
-                refAlt = oa + ov * dt;
+            // Vertical reference: the live altitude from Condor's NMEA (QNH, MSL). Receivers compute a target's
+            // altitude as "own GGA altitude + RelativeVertical", so with this reference every target shows exactly
+            // its Spectate altitude above sea level – independent of which pilot Spectate marks as own glider.
+            // (Using the own glider's Spectate altitude instead shifted all targets whenever that identification
+            // was wrong, e.g. by ~700 m.) Without live data the own glider from Spectate is the reference.
+            var liveData = snapshot.PositionSource is DataSource.Nmea or DataSource.Udp;
+            // same altitude that goes out in $GPGGA (Condor sends the identical value in GGA and LXWP0)
+            double? refAlt = liveData ? snapshot.GpsAltitude ?? snapshot.BaroAltitude : null;
+            if (refAlt is null && own?.Altitude is { } oa)
+                refAlt = oa + (own.Vario ?? 0) * dt;
+            refAlt ??= liveAlt;
 
             var list = new List<TrafficTarget>(_pilots.Count);
             foreach (var p in _pilots)
@@ -172,6 +182,7 @@ public sealed class TrafficTracker
                     RelativeNorth = n,
                     RelativeEast = e,
                     RelativeVertical = v,
+                    Altitude = p.Altitude is null ? null : alt,
                 };
                 if (MaxRangeMeters > 0 && t.Distance > MaxRangeMeters)
                     continue;

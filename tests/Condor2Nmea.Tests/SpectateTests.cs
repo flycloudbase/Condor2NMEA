@@ -125,6 +125,51 @@ public class SpectateTests
         Assert.Single(targets);
     }
 
+    private static FlightSnapshot LiveSnapshot(DateTime now, string lat, string lon, double altitude)
+    {
+        var state = new FlightState();
+        var parser = new CondorNmeaParser();
+        var alt = altitude.ToString("F1", System.Globalization.CultureInfo.InvariantCulture);
+        parser.Apply(NmeaLine.TryParse(NmeaChecksum.Wrap($"GPGGA,120000.00,{lat},{lon},1,12,10,{alt},M,,,,,0000"))!, state, now);
+        parser.Apply(NmeaLine.TryParse(NmeaChecksum.Wrap($"GPRMC,120000.00,A,{lat},{lon},80.0,90.0,,,,"))!, state, now);
+        parser.Apply(NmeaLine.TryParse(NmeaChecksum.Wrap($"LXWP0,Y,150.0,{alt},0.50,,,,,,90,0,0.0"))!, state, now);
+        return state.Snapshot(now);
+    }
+
+    [Fact]
+    public void RelativeAltitudeUsesTheLiveNmeaAltitude()
+    {
+        // Spectate marks "MM" (1106 m) as selected, but the live glider flies 19 km further north at 1806 m.
+        var pilots = SpectateParser.TryParse(Samples.Read("condor3-spectate.json"))!;
+        var now = DateTime.UtcNow;
+        var tracker = new TrafficTracker { Extrapolate = false };
+        tracker.Update(pilots, now);
+        var snap = LiveSnapshot(now, "4718.0000,N", "01341.5680,E", 1806);
+
+        Assert.Null(tracker.CurrentOwnShip(snap.Position, snap.GpsAltitude)); // "selected" is 19 km away → not us
+        var targets = tracker.GetTargets(now, snap);
+        Assert.Equal(2, targets.Count);
+        var ab = targets.Single(t => t.Pilot.Cn == "AB");
+        var mm = targets.Single(t => t.Pilot.Cn == "MM");
+        // receivers show own GGA altitude + relative = exactly the Spectate altitude
+        Assert.Equal(1206 - 1806, ab.RelativeVertical, 3);
+        Assert.Equal(1106 - 1806, mm.RelativeVertical, 3);
+        Assert.Equal(1206, ab.Altitude!.Value, 3);
+    }
+
+    [Fact]
+    public void SelectedPilotAtTheLivePositionIsOwnShip()
+    {
+        var pilots = SpectateParser.TryParse(Samples.Read("condor3-spectate.json"))!;
+        var now = DateTime.UtcNow;
+        var tracker = new TrafficTracker { Extrapolate = false };
+        tracker.Update(pilots, now);
+        var snap = LiveSnapshot(now, "4707.8540,N", "01341.5680,E", 1100); // at MM, a few metres off in altitude
+        Assert.Equal("MM", tracker.CurrentOwnShip(snap.Position, snap.GpsAltitude)!.Cn);
+        var ab = Assert.Single(tracker.GetTargets(now, snap));
+        Assert.Equal(1206 - 1100, ab.RelativeVertical, 3);
+    }
+
     [Fact]
     public void SelectionKeyPrefersCompetitionNumber()
     {

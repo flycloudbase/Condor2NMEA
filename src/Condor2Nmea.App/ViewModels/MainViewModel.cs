@@ -587,6 +587,19 @@ public sealed partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(SelectedOwnShip));
     }
 
+    /// <summary>
+    /// Compares the own altitude from Condor's NMEA with the own glider's Spectate altitude. A large difference means
+    /// the wrong pilot is taken as own glider.
+    /// </summary>
+    private static string OwnAltitudeCheck(Core.Parsing.SpectatePilot own, FlightSnapshot snap)
+    {
+        var nmea = snap.PositionSource is DataSource.Nmea or DataSource.Udp ? snap.GpsAltitude ?? snap.BaroAltitude : null;
+        if (nmea is not { } n || own.Altitude is not { } sp)
+            return "";
+        var text = $" · Höhe Condor {n.ToString("N0", CultureInfo.CurrentCulture)} m, Spectate {sp.ToString("N0", CultureInfo.CurrentCulture)} m";
+        return Math.Abs(n - sp) > 150 ? text + " – passt nicht, ist das wirklich dein Flugzeug?" : text;
+    }
+
     private void UpdateTraffic(BridgeEngine? engine, FlightSnapshot snap, DateTime now)
     {
         UpdateOwnShipOptions(engine);
@@ -606,7 +619,8 @@ public sealed partial class MainViewModel : ObservableObject
             ? "Keine Multiplayer-Daten. Verkehr erscheint, sobald ein Online-Flug läuft."
             : $"{engine.Traffic.PilotCount} Piloten im Rennen · " + (own is null
                 ? manual ? "das gewählte eigene Flugzeug ist nicht im Rennen" : "eigenes Flugzeug nicht erkannt – bitte oben auswählen"
-                : $"eigenes Flugzeug: {own.DisplayName} {own.PilotName} ({(manual ? "manuell gewählt" : "automatisch erkannt")})");
+                : $"eigenes Flugzeug: {own.DisplayName} {own.PilotName} ({(manual ? "manuell gewählt" : "automatisch erkannt")})" +
+                  OwnAltitudeCheck(own, snap));
         HasTraffic = targets.Count > 0;
         RadarTargets = targets.Select(t => new RadarTarget(t.RelativeNorth, t.RelativeEast, t.RelativeVertical,
             t.Pilot.DisplayName, t.Pilot.Heading)).ToList();
@@ -614,6 +628,7 @@ public sealed partial class MainViewModel : ObservableObject
         Replace(Traffic, targets.Select(t => new TrafficRow(
             t.Pilot.DisplayName, t.Pilot.PilotName, t.Pilot.Plane,
             F(t.Distance / 1000, "0.0") + " km", F(t.Bearing, "0") + "°", F(t.RelativeVertical, "+0;-0;0") + " m",
+            t.Altitude is { } alt ? F(alt, "N0") + " m" : "",
             t.Pilot.Speed is { } sp ? F(sp * 3.6, "0") + " km/h" : "", t.Pilot.Vario is { } v ? F(v, "+0.0;-0.0;0.0") + " m/s" : "",
             t.Pilot.PlayerStatus)));
     }

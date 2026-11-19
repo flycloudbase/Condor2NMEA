@@ -74,10 +74,11 @@
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="CN" Binding="{Binding Cn}" Width="55" />
                             <DataGridTextColumn Header="Pilot" Binding="{Binding Pilot}" Width="2*" MinWidth="90" />
-                            <DataGridTextColumn Header="Flugzeug" Binding="{Binding Plane}" Width="*" MinWidth="70" />
+                            <DataGridTextColumn Header="Flugzeug" Binding="{Binding Plane}" Width="*" MinWidth="60" />
                             <DataGridTextColumn Header="Entf." Binding="{Binding Distance}" Width="70" />
-                            <DataGridTextColumn Header="Höhe" Binding="{Binding Vertical}" Width="70" />
-                            <DataGridTextColumn Header="Vario" Binding="{Binding Vario}" Width="80" />
+                            <DataGridTextColumn Header="Δ Höhe" Binding="{Binding Vertical}" Width="70" />
+                            <DataGridTextColumn Header="Höhe" Binding="{Binding Altitude}" Width="75" />
+                            <DataGridTextColumn Header="Vario" Binding="{Binding Vario}" Width="75" />
                         </DataGrid.Columns>
                     </DataGrid>
                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="24"

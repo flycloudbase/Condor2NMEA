@@ -11,6 +11,8 @@ public sealed record TrafficTarget
     public double RelativeNorth { get; init; }
     public double RelativeEast { get; init; }
     public double RelativeVertical { get; init; }
+    /// <summary>Altitude above sea level from Spectate (extrapolated) [m].</summary>
+    public double? Altitude { get; init; }
     public double Distance => Math.Sqrt(RelativeNorth * RelativeNorth + RelativeEast * RelativeEast);
     /// <summary>Bearing from own ship [deg true].</summary>
     public double Bearing => (Math.Atan2(RelativeEast, RelativeNorth) * 180.0 / Math.PI + 360.0) % 360.0;
