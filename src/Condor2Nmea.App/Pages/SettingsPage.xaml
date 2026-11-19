@@ -199,7 +199,7 @@
                                           SelectedValuePath="Value" SelectedValue="{Binding Settings.Spectate.Mode}" />
                             </StackPanel>
                             <StackPanel Grid.Column="2">
-                                <TextBlock Style="{StaticResource FieldLabel}" Text="Eigene Wettbewerbskennung (leer = automatisch)" />
+                                <TextBlock Style="{StaticResource FieldLabel}" Text="Eigenes Flugzeug: WBK oder Kennzeichen (leer = automatisch; auch unter Verkehr wählbar)" />
                                 <ui:TextBox Text="{Binding Settings.Spectate.OwnCn}" PlaceholderText="z. B. CG" />
                             </StackPanel>
                         </Grid>

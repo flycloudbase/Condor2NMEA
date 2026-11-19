@@ -32,7 +32,7 @@ und erledigte Schritte automatisch abhakt:
    Treiber **Condor Soaring Simulator 3**.
 
 Die **Übersicht** zeigt danach auf einen Blick, ob Daten aus Condor ankommen und ob der Flugcomputer verbunden ist, dazu Höhe, Fahrt,
-Vario, Netto, Wind und MacCready. Unter **Verkehr** gibt es ein Radar der Multiplayer-Flugzeuge, der **NMEA-Monitor** zeigt alle Sätze.
+Vario, Netto, Wind und MacCready. Unter **Verkehr** gibt es ein Radar der Multiplayer-Flugzeuge und eine Auswahl des eigenen Flugzeugs (automatisch oder manuell aus der Liste der Piloten), der **NMEA-Monitor** zeigt alle Sätze.
 Weitere Geräte (z. B. ein zweites XCSoar-Gerät mit Profil *OpenVario* oder den umgekehrten Verbindungsweg *TCP-Client*) legst du unter
 **Einstellungen → Ausgänge** an.
 

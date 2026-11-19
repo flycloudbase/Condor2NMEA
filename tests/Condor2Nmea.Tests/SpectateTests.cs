@@ -107,6 +107,32 @@ public class SpectateTests
         Assert.Equal("AB", tracker.FindOwnShip(null, null)!.Cn);
     }
 
+    [Theory]
+    [InlineData("AB", "AB")]          // competition number
+    [InlineData("d-1234", "AB")]      // registration, case-insensitive
+    [InlineData("42", "AB")]          // Condor id for pilots without CN/registration
+    [InlineData("", "MM")]            // empty = automatic ("selected")
+    public void OwnShipCanBeChosenManually(string choice, string expectedCn)
+    {
+        var pilots = SpectateParser.TryParse(Samples.Read("condor3-spectate.json"))!;
+        var tracker = new TrafficTracker();
+        var now = DateTime.UtcNow;
+        tracker.Update(pilots, now);
+        tracker.OwnCn = choice; // can change while running
+        Assert.Equal(expectedCn, tracker.CurrentOwnShip()!.Cn);
+        var targets = tracker.GetTargets(now, new FlightState().Snapshot(now));
+        Assert.DoesNotContain(targets, t => t.Pilot.Cn == expectedCn);
+        Assert.Single(targets);
+    }
+
+    [Fact]
+    public void SelectionKeyPrefersCompetitionNumber()
+    {
+        Assert.Equal("AB", TrafficTracker.SelectionKey(new SpectatePilot { Id = "42", Cn = "AB", Registration = "D-1234" }));
+        Assert.Equal("D-1234", TrafficTracker.SelectionKey(new SpectatePilot { Id = "42", Registration = "D-1234" }));
+        Assert.Equal("42", TrafficTracker.SelectionKey(new SpectatePilot { Id = "42" }));
+    }
+
     [Fact]
     public void FlarmIdsAreStable()
     {

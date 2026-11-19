@@ -524,8 +524,72 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty] private string _trafficInfo = "Brücke ist gestoppt.";
     [ObservableProperty] private bool _hasTraffic;
 
+    /// <summary>Choices for the own glider: "automatic" plus every pilot in the session.</summary>
+    public ObservableCollection<Option<string>> OwnShipOptions { get; } = new() { new Option<string>("", AutoOwnShipLabel) };
+    private const string AutoOwnShipLabel = "Automatisch erkennen";
+    private string _ownShipOptionsKey = "";
+    private bool _rebuildingOwnShipOptions;
+
+    /// <summary>
+    /// Own glider chosen by the user ("" = automatic). Takes effect immediately and is saved; the same value as
+    /// „Eigene Wettbewerbskennung“ in the settings.
+    /// </summary>
+    public string SelectedOwnShip
+    {
+        get => Settings.Spectate.OwnCn;
+        set
+        {
+            if (_rebuildingOwnShipOptions || value is null || value == Settings.Spectate.OwnCn)
+                return;
+            Settings.Spectate.OwnCn = value;
+            if (_engine is not null)
+                _engine.Traffic.OwnCn = value;
+            try { SaveSettings(); } catch (Exception) { /* keeps working, saved on exit */ }
+            OnPropertyChanged();
+            NotifySettingsChanged();
+            Refresh();
+        }
+    }
+
+    private void UpdateOwnShipOptions(BridgeEngine? engine)
+    {
+        var pilots = engine?.Traffic.Pilots ?? Array.Empty<Core.Parsing.SpectatePilot>();
+        var options = new List<Option<string>> { new("", AutoOwnShipLabel) };
+        foreach (var p in pilots.OrderBy(p => p.Cn, StringComparer.OrdinalIgnoreCase))
+        {
+            var key = Core.Traffic.TrafficTracker.SelectionKey(p);
+            if (key.Length == 0 || options.Any(o => o.Value == key))
+                continue;
+            var label = string.Join("  ·  ", new[] { p.Cn.Length > 0 ? p.Cn : p.Registration, p.PilotName, p.Plane }
+                .Where(x => !string.IsNullOrWhiteSpace(x)));
+            options.Add(new Option<string>(key, label));
+        }
+        // keep a manual choice visible even when that pilot is not (yet) in the session
+        var chosen = Settings.Spectate.OwnCn;
+        if (chosen.Length > 0 && options.All(o => !string.Equals(o.Value, chosen, StringComparison.OrdinalIgnoreCase)))
+            options.Add(new Option<string>(chosen, $"{chosen}  ·  derzeit nicht im Rennen"));
+
+        var signature = string.Join("|", options.Select(o => o.Value + "=" + o.Label));
+        if (signature == _ownShipOptionsKey)
+            return;
+        _ownShipOptionsKey = signature;
+        _rebuildingOwnShipOptions = true;
+        try
+        {
+            OwnShipOptions.Clear();
+            foreach (var o in options)
+                OwnShipOptions.Add(o);
+        }
+        finally
+        {
+            _rebuildingOwnShipOptions = false;
+        }
+        OnPropertyChanged(nameof(SelectedOwnShip));
+    }
+
     private void UpdateTraffic(BridgeEngine? engine, FlightSnapshot snap, DateTime now)
     {
+        UpdateOwnShipOptions(engine);
         if (engine is null)
         {
             Traffic.Clear();
@@ -535,12 +599,14 @@ public sealed partial class MainViewModel : ObservableObject
             return;
         }
         var targets = engine.Traffic.GetTargets(now, snap);
-        var own = engine.Traffic.FindOwnShip(null, null);
+        var live = snap.PositionSource is DataSource.Nmea or DataSource.Udp ? snap.Position : null;
+        var own = engine.Traffic.CurrentOwnShip(live, snap.BaroAltitude ?? snap.GpsAltitude);
+        var manual = Settings.Spectate.OwnCn.Length > 0;
         TrafficInfo = engine.Traffic.PilotCount == 0
             ? "Keine Multiplayer-Daten. Verkehr erscheint, sobald ein Online-Flug läuft."
-            : $"{engine.Traffic.PilotCount} Piloten im Rennen" +
-              (own is null ? " · eigenes Flugzeug nicht erkannt (Wettbewerbskennung in den Einstellungen eintragen)"
-                           : $" · eigenes Flugzeug: {own.DisplayName} {own.PilotName}");
+            : $"{engine.Traffic.PilotCount} Piloten im Rennen · " + (own is null
+                ? manual ? "das gewählte eigene Flugzeug ist nicht im Rennen" : "eigenes Flugzeug nicht erkannt – bitte oben auswählen"
+                : $"eigenes Flugzeug: {own.DisplayName} {own.PilotName} ({(manual ? "manuell gewählt" : "automatisch erkannt")})");
         HasTraffic = targets.Count > 0;
         RadarTargets = targets.Select(t => new RadarTarget(t.RelativeNorth, t.RelativeEast, t.RelativeVertical,
             t.Pilot.DisplayName, t.Pilot.Heading)).ToList();

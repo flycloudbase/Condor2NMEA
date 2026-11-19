@@ -16,7 +16,10 @@ public sealed class TrafficTracker
     private int _autoMatchCount;
     private string? _autoCandidateId;
 
-    /// <summary>Competition number of the own glider. Empty = automatic detection.</summary>
+    /// <summary>
+    /// Own glider chosen by the user: competition number, registration or Condor id (see <see cref="SelectionKey"/>).
+    /// Empty = automatic detection. Can be changed while running.
+    /// </summary>
     public string OwnCn { get; set; } = "";
     public bool AutoDetectOwnShip { get; set; } = true;
     /// <summary>Targets further away are not reported. 0 = unlimited.</summary>
@@ -61,8 +64,10 @@ public sealed class TrafficTracker
     {
         if (!string.IsNullOrWhiteSpace(OwnCn))
         {
-            return _pilots.FirstOrDefault(p => string.Equals(p.Cn, OwnCn.Trim(), StringComparison.OrdinalIgnoreCase))
-                   ?? _pilots.FirstOrDefault(p => string.Equals(p.Registration, OwnCn.Trim(), StringComparison.OrdinalIgnoreCase));
+            var key = OwnCn.Trim();
+            return _pilots.FirstOrDefault(p => string.Equals(p.Cn, key, StringComparison.OrdinalIgnoreCase))
+                   ?? _pilots.FirstOrDefault(p => string.Equals(p.Registration, key, StringComparison.OrdinalIgnoreCase))
+                   ?? _pilots.FirstOrDefault(p => string.Equals(p.Id, key, StringComparison.Ordinal));
         }
         if (!AutoDetectOwnShip)
             return null;
@@ -183,6 +188,10 @@ public sealed class TrafficTracker
             return pos;
         return GeoMath.Offset(pos, heading, speed * dt);
     }
+
+    /// <summary>Value for <see cref="OwnCn"/> that identifies this pilot: competition number, else registration, else id.</summary>
+    public static string SelectionKey(SpectatePilot p) =>
+        p.Cn.Length > 0 ? p.Cn : p.Registration.Length > 0 ? p.Registration : p.Id;
 
     /// <summary>Stable 24-bit id: numeric Condor ids are masked, others hashed (FNV-1a).</summary>
     public static uint FlarmId(string id)
