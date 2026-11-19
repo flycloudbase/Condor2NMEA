@@ -10,12 +10,30 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
         <TextBlock Style="{StaticResource PageTitle}" Text="Verkehr" />
         <TextBlock Grid.Row="1" Style="{StaticResource PageSubtitle}" Text="{Binding TrafficInfo}" />
 
-        <Grid Grid.Row="2">
+        <ui:Card Grid.Row="2" Padding="18,12" Margin="0,0,0,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <ui:SymbolIcon Symbol="Person24" FontSize="20" Margin="0,0,12,0" VerticalAlignment="Center"
+                               Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}" />
+                <TextBlock Grid.Column="1" Text="Eigenes Flugzeug" Style="{StaticResource CardTitle}" VerticalAlignment="Center" Margin="0,0,16,0" />
+                <ComboBox Grid.Column="2" MaxWidth="460" HorizontalAlignment="Left" MinWidth="280"
+                          ItemsSource="{Binding OwnShipOptions}" DisplayMemberPath="Label" SelectedValuePath="Value"
+                          SelectedValue="{Binding SelectedOwnShip}"
+                          ToolTip="Dieses Flugzeug wird nicht als Verkehr gemeldet und dient als Bezug für Entfernung und Höhe der anderen." />
+            </Grid>
+        </ui:Card>
+
+        <Grid Grid.Row="3">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="5*" MinWidth="320" />
                 <ColumnDefinition Width="16" />
@@ -56,10 +74,11 @@
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="CN" Binding="{Binding Cn}" Width="55" />
                             <DataGridTextColumn Header="Pilot" Binding="{Binding Pilot}" Width="2*" MinWidth="90" />
-                            <DataGridTextColumn Header="Flugzeug" Binding="{Binding Plane}" Width="*" MinWidth="70" />
+                            <DataGridTextColumn Header="Flugzeug" Binding="{Binding Plane}" Width="*" MinWidth="60" />
                             <DataGridTextColumn Header="Entf." Binding="{Binding Distance}" Width="70" />
-                            <DataGridTextColumn Header="Höhe" Binding="{Binding Vertical}" Width="70" />
-                            <DataGridTextColumn Header="Vario" Binding="{Binding Vario}" Width="80" />
+                            <DataGridTextColumn Header="Δ Höhe" Binding="{Binding Vertical}" Width="70" />
+                            <DataGridTextColumn Header="Höhe" Binding="{Binding Altitude}" Width="75" />
+                            <DataGridTextColumn Header="Vario" Binding="{Binding Vario}" Width="75" />
                         </DataGrid.Columns>
                     </DataGrid>
                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="24"

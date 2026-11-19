@@ -4,13 +4,29 @@ using Condor2Nmea.Core.Traffic;
 
 namespace Condor2Nmea.Core.Generation;
 
-/// <summary>FLARM data port sentences (FTD-012) for multiplayer traffic.</summary>
+/// <summary>
+/// FLARM data port sentences for multiplayer traffic, conforming to FTD-012 Data Port ICD 7.23
+/// (data port version 9 field layout). Typical order per second: GPRMC, GPGGA, {PFLAA}n, PFLAU.
+/// </summary>
 public static class FlarmSentences
 {
+    /// <summary>FTD-012 ch. 7: at most 80 characters between "$" and CR LF.</summary>
+    public const int MaxSentenceLength = 80;
+
+    /// <summary>IDType 2 = fixed FLARM ID. Condor ids are not ICAO addresses (1) and not random (0).</summary>
+    public const int IdTypeFixedFlarm = 2;
+
+    /// <summary>PFLAU &lt;GPS&gt; field.</summary>
+    public enum GpsStatus { NoFix = 0, OnGround = 1, Airborne = 2 }
+
     public sealed record Options
     {
-        /// <summary>Write "HEXID!CN" in PFLAA so programs like XCSoar can show the competition number.</summary>
-        public bool AppendCnToId { get; init; } = true;
+        /// <summary>
+        /// NOT ICD conform: writes "HEXID!CN" into the PFLAA ID field, an XCSoar extension to show the
+        /// competition number. Readers that follow the ICD (e.g. Cloudbase) drop such targets. Off by default;
+        /// the competition number is sent ICD-conform via PFLAM ACALL anyway.
+        /// </summary>
+        public bool NonStandardCnInId { get; init; }
         public int MaxTargets { get; init; } = 50;
     }
 
@@ -20,27 +36,46 @@ public static class FlarmSentences
             yield return PflaaFor(t, options);
     }
 
+    /// <summary>
+    /// PFLAA,&lt;AlarmLevel&gt;,&lt;RelativeNorth&gt;,&lt;RelativeEast&gt;,&lt;RelativeVertical&gt;,&lt;IDType&gt;,&lt;ID&gt;,&lt;Track&gt;,
+    /// &lt;TurnRate&gt;,&lt;GroundSpeed&gt;,&lt;ClimbRate&gt;,&lt;AcftType&gt;,&lt;NoTrack&gt;,&lt;Source&gt;,&lt;RSSI&gt;
+    /// </summary>
     public static string PflaaFor(TrafficTarget t, Options options)
     {
         var id = t.HexId.ToString("X6");
-        var label = SanitizeLabel(t.Pilot.Cn.Length > 0 ? t.Pilot.Cn : t.Pilot.Registration);
-        if (options.AppendCnToId && label.Length > 0)
-            id += "!" + label;
-        var track = t.Pilot.Heading is { } h ? ((int)Math.Round(h) % 360).ToString(Inv.C) : "";
-        var speed = t.Pilot.Speed is { } sp ? Inv.F(Math.Max(0, sp), 0) : "";
-        var climb = t.Pilot.Vario is { } v ? Inv.F(v, 1) : "";
-        // $PFLAA,AlarmLevel,RelN,RelE,RelV,IDType,ID,Track,TurnRate,GroundSpeed,ClimbRate,AcftType
+        if (options.NonStandardCnInId)
+        {
+            var label = SanitizeLabel(t.Pilot.Cn.Length > 0 ? t.Pilot.Cn : t.Pilot.Registration);
+            if (label.Length > 0)
+                id += "!" + label;
+        }
+
+        // Track: integer 0..359, true ground track
+        var track = t.Pilot.Heading is { } h ? (((int)Math.Round(h) % 360 + 360) % 360).ToString(Inv.C) : "";
+        // GroundSpeed: integer m/s, forced > 0 while moving, 0 on the ground
+        var speed = t.Pilot.Speed is { } sp ? (sp < 0.5 ? 0 : Math.Max(1, (int)Math.Round(sp))).ToString(Inv.C) : "";
+        // ClimbRate: one decimal, -32.7 … 32.7
+        var climb = t.Pilot.Vario is { } v ? Inv.F(Math.Clamp(v, -32.7, 32.7), 1) : "";
+        var north = (long)Math.Round(Math.Clamp(t.RelativeNorth, -20_000_000, 20_000_000));
+        var east = (long)Math.Round(Math.Clamp(t.RelativeEast, -20_000_000, 20_000_000));
+        var vertical = (int)Math.Round(Math.Clamp(t.RelativeVertical, -32768, 32767));
+
+        // AlarmLevel 0 (no alarm, traffic information), TurnRate empty (ICD: "currently empty"),
+        // AcftType 1 = glider, NoTrack 0, Source 0 = FLARM, RSSI empty (unknown)
         return NmeaChecksum.Wrap(string.Create(Inv.C,
-            $"PFLAA,0,{Math.Round(t.RelativeNorth):0},{Math.Round(t.RelativeEast):0},{Math.Round(t.RelativeVertical):0},1,{id},{track},,{speed},{climb},1"));
+            $"PFLAA,0,{north},{east},{vertical},{IdTypeFixedFlarm},{id},{track},,{speed},{climb},1,0,0,"));
     }
 
-    /// <summary>$PFLAU status: RX count, TX ok, 3D fix, power ok, no alarm.</summary>
-    public static string Pflau(int count) =>
-        NmeaChecksum.Wrap(string.Create(Inv.C, $"PFLAU,{Math.Min(count, 99)},1,2,1,0,,0,,,"));
+    /// <summary>
+    /// PFLAU heartbeat, once per second: &lt;RX&gt; = number of received aircraft (0…99), TX and power OK,
+    /// GPS status of the own glider, no alarm, no alarm target (bearing, vertical, distance and ID empty).
+    /// </summary>
+    public static string Pflau(int count, GpsStatus gps = GpsStatus.Airborne) =>
+        NmeaChecksum.Wrap(string.Create(Inv.C, $"PFLAU,{Math.Clamp(count, 0, 99)},1,{(int)gps},1,0,,0,,,"));
 
     /// <summary>
-    /// $PFLAM name/identification messages (pilot name, competition id, registration, type) as used
-    /// by XCSoar. Payloads are hex encoded ASCII.
+    /// PFLAM messaging (FTD-109): pilot name, competition id (call sign), registration and aircraft type of
+    /// another aircraft. Payload is hex encoded UTF-8; the sentence stays within 80 characters.
     /// </summary>
     public static IEnumerable<string> Pflam(TrafficTarget t)
     {
@@ -51,38 +86,38 @@ public static class FlarmSentences
         if (p.Plane.Length > 0) yield return PflamLine(t.HexId, "ATYPE", p.Plane);
     }
 
-    private static string PflamLine(uint id, string type, string text) =>
-        NmeaChecksum.Wrap($"PFLAM,U,2,{id:X6},{type},{Hex(text, 17)}");
-
-    private static string Hex(string text, int maxChars)
+    private static string PflamLine(uint id, string type, string text)
     {
-        var bytes = Encoding.ASCII.GetBytes(Ascii(text));
-        var sb = new StringBuilder();
-        foreach (var b in bytes.Take(maxChars))
-            sb.Append(b.ToString("X2"));
-        return sb.ToString();
+        var prefix = $"PFLAM,U,{IdTypeFixedFlarm},{id:X6},{type},";
+        // 80 characters between "$" and CR LF, minus "*hh"
+        var maxBytes = (MaxSentenceLength - prefix.Length - 3) / 2;
+        return NmeaChecksum.Wrap(prefix + HexUtf8(text, maxBytes));
     }
 
-    private static string Ascii(string s)
+    /// <summary>Hex encoded UTF-8 text, cut at a character boundary so that it fits <paramref name="maxBytes"/>.</summary>
+    internal static string HexUtf8(string text, int maxBytes)
     {
-        string decomposed;
-        try { decomposed = s.Normalize(NormalizationForm.FormD); }
-        catch (Exception) { decomposed = s; }
-        var sb = new StringBuilder(s.Length);
-        foreach (var ch in decomposed)
+        var clean = new StringBuilder(text.Length);
+        foreach (var ch in text.Trim())
+            if (!char.IsControl(ch))
+                clean.Append(ch);
+        var s = clean.ToString();
+        var bytes = Encoding.UTF8.GetBytes(s);
+        while (bytes.Length > maxBytes && s.Length > 0)
         {
-            if (ch < 32 || ch > 126)
-                continue;
-            sb.Append(ch);
+            s = s[..^1];
+            if (s.Length > 0 && char.IsHighSurrogate(s[^1]))
+                s = s[..^1];
+            bytes = Encoding.UTF8.GetBytes(s);
         }
-        return sb.ToString();
+        return Convert.ToHexString(bytes);
     }
 
     private static string SanitizeLabel(string s)
     {
         var sb = new StringBuilder();
-        foreach (var ch in Ascii(s))
-            if (ch is not (',' or '*' or '$' or '!' or ' '))
+        foreach (var ch in s)
+            if (ch is > ' ' and <= '~' and not (',' or '*' or '$' or '!'))
                 sb.Append(ch);
         return sb.Length > 8 ? sb.ToString(0, 8) : sb.ToString();
     }

@@ -40,7 +40,7 @@ public sealed class BridgeEngine : IInputSink, IAsyncDisposable
             MaxRangeMeters = _settings.Spectate.MaxRangeKm * 1000,
             Extrapolate = _settings.Spectate.Extrapolate,
         };
-        _flarmOptions = new FlarmSentences.Options { AppendCnToId = _settings.Spectate.AppendCnToFlarmId };
+        _flarmOptions = new FlarmSentences.Options { NonStandardCnInId = _settings.Spectate.NonStandardCnInFlarmId };
     }
 
     public FlightState State { get; } = new();
@@ -288,8 +288,9 @@ public sealed class BridgeEngine : IInputSink, IAsyncDisposable
             foreach (var t in targets.Take(_flarmOptions.MaxTargets))
                 if (_announcedIds.Add(t.HexId))
                     names.AddRange(FlarmSentences.Pflam(t));
-            flarmLines.Add(FlarmSentences.Pflau(targets.Count));
+            // ICD order: {PFLAA}n, then the PFLAU heartbeat
             flarmLines.AddRange(FlarmSentences.Pflaa(targets, _flarmOptions));
+            flarmLines.Add(FlarmSentences.Pflau(Traffic.PilotCount > 0 ? Math.Max(targets.Count, Traffic.PilotCount - 1) : 0, GpsStatusOf(snap)));
             // names are kept separate so outputs without FlarmNames can skip them
             _pendingNames = names;
         }
@@ -342,6 +343,17 @@ public sealed class BridgeEngine : IInputSink, IAsyncDisposable
     }
 
     private List<string> _pendingNames = new();
+
+    /// <summary>PFLAU &lt;GPS&gt;: no fix, 3D fix on the ground, 3D fix airborne.</summary>
+    private static FlarmSentences.GpsStatus GpsStatusOf(FlightSnapshot snap)
+    {
+        if (snap.Position is null)
+            return FlarmSentences.GpsStatus.NoFix;
+        var onGround = snap.WheelHeight is { } wh
+            ? wh < CloudbaseSentences.OnGroundWheelHeight
+            : snap.GroundSpeed is { } gs && gs < 5;
+        return onGround ? FlarmSentences.GpsStatus.OnGround : FlarmSentences.GpsStatus.Airborne;
+    }
 
     // ------------------------------------------------------------------ $PCBC (Cloudbase)
 

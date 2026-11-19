@@ -144,7 +144,7 @@ Prinzipien:
 |---|---|---|
 | GPS | `$GPRMC`, `$GPGGA` (mit korrekter Geoid-Separation), optional `$GPGSA` | alle |
 | LX/Condor | `$LXWP0` (TAS, Baro-Höhe, Vario, Kurs, Wind), optional `$LXWP2` (MC, Ballast, Bugs) | XCSoar-Treiber „Condor Soaring Simulator 3“, LK8000 „Condor“ |
-| FLARM | `$PFLAU`, `$PFLAA` (ID = 24-Bit aus Condor-ID, Feld „ID!CN“, Geschwindigkeit in m/s), `$PFLAM` (Name, CN, Kennzeichen, Typ) | alle FLARM-fähigen Programme. XCSoar parst PFLAU/PFLAA **unabhängig vom gewählten Treiber**. |
+| FLARM | `$PFLAU`, `$PFLAA` (ICD-konform: ID = 24-Bit aus Condor-ID, IDType 2, Geschwindigkeit in m/s; „ID!CN“ nur noch optional für XCSoar), `$PFLAM` (Name, CN, Kennzeichen, Typ) | alle FLARM-fähigen Programme. XCSoar parst PFLAU/PFLAA **unabhängig vom gewählten Treiber**. |
 | OpenVario | `$POV,E,…,e,…,S,…,L,…` (TE, unkompensiertes Vario, TAS, G-Last) | XCSoar-Treiber „OpenVario“ als zweites Gerät, damit Netto/Lage-Daten ankommen |
 | Raw | unveränderte Condor-Zeilen | Kompatibilitätsmodus wie HW VSP3 |
 | PGRMZ | Druckhöhe | ältere Programme |
