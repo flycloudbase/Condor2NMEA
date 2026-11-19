@@ -102,6 +102,62 @@ $PCBC,EVENT,1,122550.04,M.Muster released*22
 Damit kann Cloudbase z. B. Ausklinken und Landung genau erkennen (Logbuch, Flugaufzeichnung) statt sie aus der
 Bewegung zu schätzen.
 
+## `$PCBC,TASK` und `$PCBC,TP` – Aufgabe aus Condor
+
+Condor2NMEA liest die Condor-Aufgabe (`.fpl`) und rechnet die Wendepunkte mit Condors eigener `NaviCon.dll` aus
+Landschafts-Koordinaten in WGS84 um. Quelle (Einstellungen → Aufgabe): die zuletzt gespeicherte `.fpl` im Ordner
+`Dokumente\Condor3\FlightPlans` (mit Unterordnern) oder eine bestimmte Datei.
+
+Gesendet wird ein Block aus einem `TASK`-Kopf und je einem `TP` pro Wendepunkt:
+- sofort, wenn sich die Aufgabe ändert oder sich ein Gerät mit dem Cloudbase-Ausgang verbindet,
+- sonst alle 30 s (`Task.RepeatSeconds`).
+
+Ein Empfänger sammelt die `TP` eines Hashs und übernimmt die Aufgabe, sobald alle Punkte da sind. Gleicher Hash heißt
+unveränderte Aufgabe.
+
+### `$PCBC,TASK`
+
+| Feld | Inhalt | Beispiel |
+|---|---|---|
+| 0 | `TASK` | |
+| 1 | Version, `1` | |
+| 2 | Hash der Aufgabe (8 Hex-Zeichen), ändert sich mit jedem Wendepunkt | `5C2E19A0` |
+| 3 | Anzahl Punkte einschließlich Startplatz | `5` |
+| 4 | Streckenlänge Abflug → Wenden → Ziel | `152.3` (km) |
+| 5 | Landschaft | `AA3` |
+| 6 | Name der Aufgabe | `Testaufgabe` |
+
+### `$PCBC,TP`
+
+| Feld | Inhalt | Einheit / Werte |
+|---|---|---|
+| 0 | `TP` | |
+| 1 | Version, `1` | |
+| 2 | Hash der Aufgabe (wie in `TASK`) | |
+| 3 | Index | 0 = Startplatz |
+| 4 | Anzahl Punkte | |
+| 5 | Rolle | `T` Startplatz (nicht gewertet), `S` Abflug, `W` Wende, `F` Ziel |
+| 6 | Breite | Grad, 6 Nachkommastellen, Süd negativ |
+| 7 | Länge | Grad, 6 Nachkommastellen, West negativ |
+| 8 | Geländehöhe des Punkts | m (`TPPosZ`) |
+| 9 | Sektortyp | `0` Sektor/Zylinder, `1` Fenster (`TPSectorType`) |
+| 10 | Radius | m (`TPRadius`) |
+| 11 | Winkel | Grad; `360` = Zylinder, sonst Sektor symmetrisch zur Winkelhalbierenden der Schenkel (`TPAngle`) |
+| 12 | Höhe | m (`TPAltitude`: Mindesthöhe bzw. Höhe des Fensters) |
+| 13 | Breite des Fensters | m (`TPWidth`) |
+| 14 | Höhe | m (`TPHeight`: Höchsthöhe bzw. Fensterhöhe) |
+| 15 | Ausrichtung des Fensters | Grad (`TPAzimuth`) |
+| 16 | Flugplatz | `0`/`1` |
+| 17 | Name | Text |
+
+Die Felder 9–15 geben Condors Werte unverändert weiter. Was Condor 3 in `TPAltitude`/`TPHeight` genau meint, ist noch
+an echten Aufgaben zu bestätigen.
+
+```
+$PCBC,TASK,1,5C2E19A0,5,32.8,TestLandscape,Testaufgabe Muster*60
+$PCBC,TP,1,5C2E19A0,1,5,S,46.468468,10.727273,800,0,3000,90,1500,0,2500,0,0,Abflug*05
+```
+
 ## Vorschlag für die Auswertung in Cloudbase
 
 | `$PCBC`-Wert | Ziel in Cloudbase |
@@ -115,5 +171,6 @@ Bewegung zu schätzen.
 | INFO 4–8 | Kennzeichen/WBK/Muster im Condor-Modus |
 | INFO 9–15 | Rennstand-Anzeige |
 | EVENT | Logbuch-Ereignisse (Ausklinken, Landung, Neustart) |
+| TASK / TP | Aufgabe übernehmen (Abflug, Wenden, Ziel mit Sektoren); im Condor-Modus automatisch |
 
 `$PCBC` ändert nichts an den übrigen Sätzen: Ein Cloudbase-Gerät „Condor“ funktioniert mit und ohne `$PCBC`.

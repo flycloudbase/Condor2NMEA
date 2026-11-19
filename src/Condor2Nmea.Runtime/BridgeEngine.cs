@@ -7,6 +7,7 @@ using Condor2Nmea.Core.Traffic;
 using Condor2Nmea.Runtime.CondorFiles;
 using Condor2Nmea.Runtime.Outputs;
 using Condor2Nmea.Runtime.Sources;
+using Condor2Nmea.Runtime.Tasks;
 
 namespace Condor2Nmea.Runtime;
 
@@ -40,10 +41,13 @@ public sealed class BridgeEngine : IInputSink, IAsyncDisposable
             MaxRangeMeters = _settings.Spectate.MaxRangeKm * 1000,
             Extrapolate = _settings.Spectate.Extrapolate,
         };
+        Tasks = new TaskProvider(_settings.Task, _settings.Condor.InstallPath);
         _flarmOptions = new FlarmSentences.Options { NonStandardCnInId = _settings.Spectate.NonStandardCnInFlarmId };
     }
 
     public FlightState State { get; } = new();
+    /// <summary>Current Condor task (sent to Cloudbase as $PCBC,TASK / $PCBC,TP).</summary>
+    public TaskProvider Tasks { get; }
     public TrafficTracker Traffic { get; }
     public string? ReplayFile { get; }
     public double ReplaySpeed { get; }
@@ -262,6 +266,15 @@ public sealed class BridgeEngine : IInputSink, IAsyncDisposable
     private void Tick(DateTime now, bool gps, bool vario, bool flarm, ref DateTime nextNames, TimeSpan namesPeriod)
     {
         var snap = State.Snapshot(now);
+        if (now >= _nextTaskPoll)
+        {
+            _nextTaskPoll = now + TimeSpan.FromSeconds(2);
+            if (Tasks.Poll())
+            {
+                _nextTaskSend = now; // send the new task right away
+                Log(Tasks.HasError ? MonitorDirection.Error : MonitorDirection.Info, "Aufgabe", Tasks.Status);
+            }
+        }
 
         IReadOnlyList<string> gpsLines = gps ? GpsSentences.Build(snap, now).ToList() : Array.Empty<string>();
         string? lxwp0 = null, lxwp0To = null, lxwp2 = null, pov = null;
@@ -289,8 +302,15 @@ public sealed class BridgeEngine : IInputSink, IAsyncDisposable
                 if (_announcedIds.Add(t.HexId))
                     names.AddRange(FlarmSentences.Pflam(t));
             // ICD order: {PFLAA}n, then the PFLAU heartbeat
-            flarmLines.AddRange(FlarmSentences.Pflaa(targets, _flarmOptions));
-            flarmLines.Add(FlarmSentences.Pflau(Traffic.PilotCount > 0 ? Math.Max(targets.Count, Traffic.PilotCount - 1) : 0, GpsStatusOf(snap)));
+            var alarms = ComputeAlarms(now, snap, targets);
+            CurrentAlarms = alarms;
+            flarmLines.AddRange(FlarmSentences.Pflaa(targets, _flarmOptions, alarms));
+            var rx = Traffic.PilotCount > 0 ? Math.Max(targets.Count, Traffic.PilotCount - 1) : 0;
+            var worst = targets.Where(t => alarms.GetValueOrDefault(t.HexId) > 0)
+                .OrderByDescending(t => alarms[t.HexId]).ThenBy(t => t.Distance).FirstOrDefault();
+            flarmLines.Add(worst is not null && snap.Track is { } ownTrack
+                ? FlarmSentences.PflauAlarm(rx, GpsStatusOf(snap), alarms[worst.HexId], worst, ownTrack)
+                : FlarmSentences.Pflau(rx, GpsStatusOf(snap)));
             // names are kept separate so outputs without FlarmNames can skip them
             _pendingNames = names;
         }
@@ -344,6 +364,37 @@ public sealed class BridgeEngine : IInputSink, IAsyncDisposable
 
     private List<string> _pendingNames = new();
 
+    // ------------------------------------------------------------------ collision warnings
+
+    private readonly TurnRateEstimator _ownTurn = new();
+    private readonly AlarmHold _alarmHold = new();
+
+    /// <summary>Alarm level per target id of the last FLARM cycle (for the UI).</summary>
+    public IReadOnlyDictionary<uint, int> CurrentAlarms { get; private set; } = new Dictionary<uint, int>();
+
+    private Dictionary<uint, int> ComputeAlarms(DateTime now, FlightSnapshot snap, IReadOnlyList<TrafficTarget> targets)
+    {
+        var result = new Dictionary<uint, int>();
+        if (!_settings.Collision.Enabled || snap.GroundSpeed is not { } gs || snap.Track is not { } track ||
+            GpsStatusOf(snap) != FlarmSentences.GpsStatus.Airborne)
+            return result;
+        var own = new AircraftMotion(0, 0, 0, gs, track, _ownTurn.Update("own", now, track), snap.TeVario ?? 0);
+        foreach (var t in targets)
+        {
+            var level = 0;
+            if (t.Pilot.Speed is { } speed && t.Pilot.Heading is { } heading)
+            {
+                var other = new AircraftMotion(t.RelativeNorth, t.RelativeEast, t.RelativeVertical, speed, heading,
+                    t.TurnRate, t.Pilot.Vario ?? 0);
+                level = CollisionPredictor.Predict(own, other).AlarmLevel;
+            }
+            level = _alarmHold.Apply(t.HexId, level, now);
+            if (level > 0)
+                result[t.HexId] = level;
+        }
+        return result;
+    }
+
     /// <summary>PFLAU &lt;GPS&gt;: no fix, 3D fix on the ground, 3D fix airborne.</summary>
     private static FlarmSentences.GpsStatus GpsStatusOf(FlightSnapshot snap)
     {
@@ -361,6 +412,9 @@ public sealed class BridgeEngine : IInputSink, IAsyncDisposable
         "Condor2NMEA " + (typeof(BridgeEngine).Assembly.GetName().Version?.ToString(3) ?? "");
 
     private DateTime _nextCloudbaseInfo;
+    private DateTime _nextTaskPoll;
+    private DateTime _nextTaskSend;
+    private int _cloudbaseClients;
     private HashSet<string> _hudSeen = new(StringComparer.Ordinal);
 
     /// <summary>Builds the $PCBC lines due in this tick (only called when an output wants them).</summary>
@@ -377,6 +431,17 @@ public sealed class BridgeEngine : IInputSink, IAsyncDisposable
             var own = Traffic.CurrentOwnShip(live, snap.BaroAltitude ?? snap.GpsAltitude);
             var count = Traffic.PilotCount;
             lines.Add(CloudbaseSentences.Info(own, count > 0 ? count : null, SoftwareName));
+        }
+
+        // Task: at once when it changed or a device connected, otherwise every RepeatSeconds
+        var clients = _outputs.Where(o => o.Profile.Cloudbase).Sum(o => Math.Max(0, o.ClientCount));
+        if (clients > _cloudbaseClients)
+            _nextTaskSend = now;
+        _cloudbaseClients = clients;
+        if (now >= _nextTaskSend && Tasks.Current is { } task)
+        {
+            _nextTaskSend = now + TimeSpan.FromSeconds(Math.Max(5, _settings.Task.RepeatSeconds));
+            lines.AddRange(TaskSentences.Build(task));
         }
 
         // HUD messages: Condor repeats them while they are shown; report each one once

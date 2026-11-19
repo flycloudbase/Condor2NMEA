@@ -108,6 +108,30 @@
                 </ItemsControl>
                 <ui:Button Content="Ausgang hinzufügen" Icon="{ui:SymbolIcon Add24}" Command="{Binding AddOutputCommand}" />
 
+                <!-- ========================================== task -->
+                <TextBlock Style="{StaticResource Section}" Text="Aufgabe für Cloudbase" />
+                <ui:Card Padding="20,16">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource Caption}"
+                                   Text="Die Aufgabe (Wendepunkte, Sektoren, Startlinie) geht als $PCBC,TASK / $PCBC,TP an Ausgänge mit dem Profil Cloudbase. Die Koordinaten rechnet Condors eigene NaviCon.dll um." />
+                        <TextBlock Style="{StaticResource FieldLabel}" Text="Quelle" />
+                        <ComboBox ItemsSource="{x:Static vm:MainViewModel.TaskModeOptions}" DisplayMemberPath="Label"
+                                  SelectedValuePath="Value" SelectedValue="{Binding Settings.Task.Mode}" />
+                        <TextBlock Style="{StaticResource FieldLabel}" Text="Ordner mit Condor-Aufgaben (leer = Standard)" />
+                        <ui:TextBox Text="{Binding Settings.Task.FlightPlanFolder}" PlaceholderText="{Binding TaskFolderHint, Mode=OneWay}" />
+                        <TextBlock Style="{StaticResource FieldLabel}" Text="Bestimmte Aufgabendatei" />
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <ui:TextBox Text="{Binding Settings.Task.FilePath}" PlaceholderText="…\FlightPlans\User\Aufgabe.fpl" />
+                            <ui:Button Grid.Column="1" Icon="{ui:SymbolIcon FolderOpen24}" Margin="8,0,0,0" Command="{Binding BrowseTaskFileCommand}" />
+                        </Grid>
+                        <TextBlock Text="{Binding TaskStatus}" Style="{StaticResource Caption}" Margin="0,10,0,0" />
+                    </StackPanel>
+                </ui:Card>
+
                 <!-- ========================================== Condor -->
                 <TextBlock Style="{StaticResource Section}" Text="Condor" />
                 <ui:Card Padding="20,16">
@@ -233,6 +257,7 @@
                         <CheckBox Content="Positionen zwischen den Updates hochrechnen (flüssigeres Radar)" IsChecked="{Binding Settings.Spectate.Extrapolate}" />
                         <CheckBox Content="Wettbewerbskennung an FLARM-ID anhängen (nur XCSoar, nicht FLARM-konform – Cloudbase zeigt den Verkehr dann nicht)" IsChecked="{Binding Settings.Spectate.NonStandardCnInFlarmId}" />
                         <CheckBox Content="Ohne COM-Port die eigene Position aus Spectate verwenden (1 Hz)" IsChecked="{Binding Settings.Spectate.UseAsPositionFallback}" />
+                        <CheckBox Content="FLARM-Kollisionswarnungen berechnen (Warnstufen 1–3 an Flugcomputer und Cloudbase)" IsChecked="{Binding Settings.Collision.Enabled}" />
                     </StackPanel>
                 </ui:Card>
 

@@ -28,6 +28,8 @@ public sealed class AppSettings
     };
     public Com0comSettings Com0com { get; set; } = new();
     public RecordingSettings Recording { get; set; } = new();
+    public TaskSettings Task { get; set; } = new();
+    public CollisionSettings Collision { get; set; } = new();
     /// <summary>Start the bridge automatically when the app starts.</summary>
     public bool AutoStart { get; set; } = true;
 }
@@ -149,4 +151,29 @@ public sealed class RecordingSettings
     public bool Enabled { get; set; }
     /// <summary>Empty = %APPDATA%\Condor2NMEA\recordings</summary>
     public string Directory { get; set; } = "";
+}
+
+public enum TaskMode
+{
+    Off,
+    /// <summary>The most recently saved .fpl in the flight plan folder (follows the Condor flight planner).</summary>
+    Newest,
+    /// <summary>A fixed .fpl file.</summary>
+    File,
+}
+
+public sealed class TaskSettings
+{
+    public TaskMode Mode { get; set; } = TaskMode.Newest;
+    /// <summary>Empty = Documents\Condor3\FlightPlans</summary>
+    public string FlightPlanFolder { get; set; } = "";
+    public string FilePath { get; set; } = "";
+    /// <summary>The task is repeated this often (and sent at once when it changes or a device connects).</summary>
+    public double RepeatSeconds { get; set; } = 30;
+}
+
+public sealed class CollisionSettings
+{
+    /// <summary>Compute FLARM-like collision warnings (PFLAA/PFLAU alarm levels) for multiplayer traffic.</summary>
+    public bool Enabled { get; set; } = true;
 }

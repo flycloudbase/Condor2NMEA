@@ -30,17 +30,18 @@ public static class FlarmSentences
         public int MaxTargets { get; init; } = 50;
     }
 
-    public static IEnumerable<string> Pflaa(IReadOnlyList<TrafficTarget> targets, Options options)
+    public static IEnumerable<string> Pflaa(IReadOnlyList<TrafficTarget> targets, Options options,
+        IReadOnlyDictionary<uint, int>? alarmLevels = null)
     {
         foreach (var t in targets.Take(options.MaxTargets))
-            yield return PflaaFor(t, options);
+            yield return PflaaFor(t, options, alarmLevels is not null && alarmLevels.TryGetValue(t.HexId, out var l) ? l : 0);
     }
 
     /// <summary>
     /// PFLAA,&lt;AlarmLevel&gt;,&lt;RelativeNorth&gt;,&lt;RelativeEast&gt;,&lt;RelativeVertical&gt;,&lt;IDType&gt;,&lt;ID&gt;,&lt;Track&gt;,
     /// &lt;TurnRate&gt;,&lt;GroundSpeed&gt;,&lt;ClimbRate&gt;,&lt;AcftType&gt;,&lt;NoTrack&gt;,&lt;Source&gt;,&lt;RSSI&gt;
     /// </summary>
-    public static string PflaaFor(TrafficTarget t, Options options)
+    public static string PflaaFor(TrafficTarget t, Options options, int alarmLevel = 0)
     {
         var id = t.HexId.ToString("X6");
         if (options.NonStandardCnInId)
@@ -60,10 +61,10 @@ public static class FlarmSentences
         var east = (long)Math.Round(Math.Clamp(t.RelativeEast, -20_000_000, 20_000_000));
         var vertical = (int)Math.Round(Math.Clamp(t.RelativeVertical, -32768, 32767));
 
-        // AlarmLevel 0 (no alarm, traffic information), TurnRate empty (ICD: "currently empty"),
+        // AlarmLevel 0…3, TurnRate empty (ICD: "currently empty"),
         // AcftType 1 = glider, NoTrack 0, Source 0 = FLARM, RSSI empty (unknown)
         return NmeaChecksum.Wrap(string.Create(Inv.C,
-            $"PFLAA,0,{north},{east},{vertical},{IdTypeFixedFlarm},{id},{track},,{speed},{climb},1,0,0,"));
+            $"PFLAA,{Math.Clamp(alarmLevel, 0, 3)},{north},{east},{vertical},{IdTypeFixedFlarm},{id},{track},,{speed},{climb},1,0,0,"));
     }
 
     /// <summary>
@@ -72,6 +73,22 @@ public static class FlarmSentences
     /// </summary>
     public static string Pflau(int count, GpsStatus gps = GpsStatus.Airborne) =>
         NmeaChecksum.Wrap(string.Create(Inv.C, $"PFLAU,{Math.Clamp(count, 0, 99)},1,{(int)gps},1,0,,0,,,"));
+
+    /// <summary>
+    /// PFLAU with the most dangerous aircraft: &lt;AlarmLevel&gt;, &lt;RelativeBearing&gt; (−180…180 from the own
+    /// ground track, clockwise), &lt;AlarmType&gt; 2 = aircraft alarm, &lt;RelativeVertical&gt;, &lt;RelativeDistance&gt;, &lt;ID&gt;.
+    /// </summary>
+    public static string PflauAlarm(int count, GpsStatus gps, int alarmLevel, TrafficTarget target, double ownTrack)
+    {
+        var rel = target.Bearing - ownTrack;
+        while (rel > 180) rel -= 360;
+        while (rel < -180) rel += 360;
+        var bearing = (int)Math.Round(rel);
+        var vertical = (int)Math.Round(Math.Clamp(target.RelativeVertical, -32768, 32767));
+        var distance = (long)Math.Round(target.Distance);
+        return NmeaChecksum.Wrap(string.Create(Inv.C,
+            $"PFLAU,{Math.Clamp(count, 0, 99)},1,{(int)gps},1,{Math.Clamp(alarmLevel, 1, 3)},{bearing},2,{vertical},{distance},{target.HexId:X6}"));
+    }
 
     /// <summary>
     /// PFLAM messaging (FTD-109): pilot name, competition id (call sign), registration and aircraft type of

@@ -14,10 +14,10 @@ sodass HW VSP3 o. ä. nicht mehr nötig ist.
 |---|---|
 | GPS | `$GPRMC` (mit Datum), `$GPGGA` (Geoid-Separation 0.0 → keine 40-m-Höhenfehler in XCSoar) |
 | LX | `$LXWP0` wie Condor (TAS in Feld 1), optional `$LXWP2` (MacCready) |
-| FLARM | `$PFLAA` und `$PFLAU` nach FLARM Data Port ICD (FTD-012 7.23), `$PFLAM` (Pilot, Wettbewerbskennung, Kennzeichen, Muster) |
+| FLARM | `$PFLAA` und `$PFLAU` nach FLARM Data Port ICD (FTD-012 7.23) mit berechneten Kollisionswarnungen (Stufe 1–3, siehe [docs/FLARM-Warnungen.md](docs/FLARM-Warnungen.md)), `$PFLAM` (Pilot, Wettbewerbskennung, Kennzeichen, Muster) |
 | OpenVario | `$POV` (TE, unkompensiert, TAS, G-Last) für ein zweites XCSoar-Gerät |
 | Raw | Condor-NMEA unverändert |
-| Cloudbase | eigene Sätze `$PCBC,DATA/INFO/EVENT` mit Netto, IAS, Lage, G-Last, Höhe über Grund, MacCready, Ballast, Klappen, Funkfrequenz, Rennstand und Condor-Meldungen – siehe [docs/PCBC.md](docs/PCBC.md) |
+| Cloudbase | eigene Sätze `$PCBC,DATA/INFO/EVENT` und die Condor-Aufgabe als `$PCBC,TASK/TP` mit Netto, IAS, Lage, G-Last, Höhe über Grund, MacCready, Ballast, Klappen, Funkfrequenz, Rennstand und Condor-Meldungen – siehe [docs/PCBC.md](docs/PCBC.md) |
 
 ## Schnellstart
 
