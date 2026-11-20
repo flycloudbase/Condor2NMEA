@@ -4,6 +4,8 @@
     <TargetFramework>net8.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
     <AssemblyName>Condor2NMEA</AssemblyName>
+    <!-- 32-bit like Condor: Condor's NaviCon.dll (task coordinates) is 32-bit and only loads into a 32-bit process -->
+    <PlatformTarget>x86</PlatformTarget>
     <RootNamespace>Condor2Nmea.App</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Title>Condor2NMEA</Title>

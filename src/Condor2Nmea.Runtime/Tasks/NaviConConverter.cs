@@ -35,7 +35,7 @@ public sealed class NaviConConverter : ICondorCoordinateConverter, IDisposable
         if (machine == 0x014C && is64 || machine == 0x8664 && !is64)
             throw new BadImageFormatException(
                 $"Condors NaviCon.dll ist {(machine == 0x014C ? "32" : "64")}-Bit, Condor2NMEA läuft als {(is64 ? "64" : "32")}-Bit. " +
-                "Bitte melde das – dann braucht es eine passende Variante von Condor2NMEA.");
+                "Condor2NMEA wird als 32-Bit-Programm ausgeliefert, passend zu Condor – bitte die 32-Bit-Version (win-x86) verwenden.");
 
         var trn = FindTrn(condorPath, landscape)
                   ?? throw new FileNotFoundException($"Landschaft „{landscape}“ nicht gefunden (…\\Landscapes\\{landscape}\\{landscape}.trn).");

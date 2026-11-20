@@ -59,10 +59,12 @@ Einstellungen liegen in `%APPDATA%\Condor2NMEA\settings.json`. Mit *Aufzeichnung
 ```
 dotnet build Condor2Nmea.sln
 dotnet test tests/Condor2Nmea.Tests
-dotnet publish src/Condor2Nmea.App -c Release -r win-x64 --self-contained -p:PublishSingleFile=true
+dotnet publish src/Condor2Nmea.App -c Release -r win-x86 --self-contained -p:PublishSingleFile=true
 ```
 
-Condor2NMEA ist ein reines Windows-Programm (.NET 8, WPF mit [WPF-UI](https://github.com/lepoco/wpfui) im Fluent-Design).
+Condor2NMEA ist ein reines Windows-Programm (.NET 8, WPF mit [WPF-UI](https://github.com/lepoco/wpfui) im Fluent-Design),
+gebaut als **32-Bit (x86)** wie Condor selbst: Nur so lässt sich Condors 32-Bit-`NaviCon.dll` laden, die die Wendepunkte
+der Aufgabe umrechnet.
 GitHub Actions baut bei jedem Push auf einen Arbeitsbranch (nicht beim Öffnen eines PRs, nicht beim Merge auf `main`, nicht bei reinen Doku-Änderungen) und stellt `Condor2NMEA.exe` und `condor2nmea.exe` als Artefakt bereit. Von Hand startbar unter Actions → build → Run workflow.
 
 ## Projektstruktur
