@@ -16,7 +16,10 @@
         <TextBlock Style="{StaticResource PageTitle}" Text="Verkehr" />
         <TextBlock Grid.Row="1" Style="{StaticResource PageSubtitle}" Text="{Binding TrafficInfo}" />
 
-        <ui:Card Grid.Row="2" Padding="18,12" Margin="0,0,0,12">
+        <StackPanel Grid.Row="2">
+        <ui:InfoBar Margin="0,0,0,12" Title="Kollisionswarnung" Severity="Error" IsClosable="False"
+                    IsOpen="{Binding HasCollisionWarning}" Message="{Binding CollisionText}" />
+        <ui:Card Padding="18,12" Margin="0,0,0,12">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
@@ -32,6 +35,7 @@
                           ToolTip="Dieses Flugzeug wird nicht als Verkehr gemeldet und dient als Bezug für Entfernung und Höhe der anderen." />
             </Grid>
         </ui:Card>
+        </StackPanel>
 
         <Grid Grid.Row="3">
             <Grid.ColumnDefinitions>
@@ -72,6 +76,7 @@
                               HeadersVisibility="Column" CanUserAddRows="False" GridLinesVisibility="None"
                               Visibility="{Binding HasTraffic, Converter={StaticResource BoolToVisibility}}">
                         <DataGrid.Columns>
+                            <DataGridTextColumn Header="" Binding="{Binding Alarm}" Width="36" />
                             <DataGridTextColumn Header="CN" Binding="{Binding Cn}" Width="55" />
                             <DataGridTextColumn Header="Pilot" Binding="{Binding Pilot}" Width="2*" MinWidth="90" />
                             <DataGridTextColumn Header="Flugzeug" Binding="{Binding Plane}" Width="*" MinWidth="60" />

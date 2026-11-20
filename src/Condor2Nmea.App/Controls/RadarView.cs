@@ -6,7 +6,7 @@ using System.Windows.Media;
 namespace Condor2Nmea.App.Controls;
 
 /// <summary>Traffic position relative to the own glider (metres, north-up).</summary>
-public sealed record RadarTarget(double North, double East, double Vertical, string Label, double? Track);
+public sealed record RadarTarget(double North, double East, double Vertical, string Label, double? Track, int AlarmLevel = 0);
 
 /// <summary>Simple north-up FLARM-style radar.</summary>
 public sealed class RadarView : FrameworkElement
@@ -34,6 +34,7 @@ public sealed class RadarView : FrameworkElement
     private static readonly Brush Above = Frozen(Color.FromRgb(0xFF, 0x8A, 0x65));
     private static readonly Brush Level = Frozen(Color.FromRgb(0xFF, 0xD5, 0x4F));
     private static readonly Brush Below = Frozen(Color.FromRgb(0x81, 0xC7, 0x84));
+    private static readonly Brush Alarm = Frozen(Color.FromRgb(0xF8, 0x51, 0x49));
     private static readonly Brush Own = Frozen(Color.FromRgb(0x4C, 0xC2, 0xFF));
 
     private static Brush Frozen(Color c)
@@ -112,6 +113,12 @@ public sealed class RadarView : FrameworkElement
             var p = new Point(center.X + x, center.Y + y);
             var brush = t.Vertical > 50 ? Above : t.Vertical < -50 ? Below : Level;
             dc.PushOpacity(outside ? 0.45 : 1.0);
+            if (t.AlarmLevel > 0)
+            {
+                var alarmPen = new Pen(Alarm, 1.5 + t.AlarmLevel);
+                alarmPen.Freeze();
+                dc.DrawEllipse(null, alarmPen, p, 9 + 2 * t.AlarmLevel, 9 + 2 * t.AlarmLevel);
+            }
             dc.DrawEllipse(brush, null, p, 6, 6);
             if (t.Track is { } track)
             {

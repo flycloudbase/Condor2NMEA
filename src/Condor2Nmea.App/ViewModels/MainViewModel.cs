@@ -378,6 +378,7 @@ public sealed partial class MainViewModel : ObservableObject
         UpdateOutputs(engine, now);
         UpdateInstruments(engine, snap, now);
         UpdateTraffic(engine, snap, now);
+        UpdateTask(engine);
         UpdateHero(engine, now);
     }
 
@@ -523,6 +524,75 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty] private double _radarRangeKm = 10;
     [ObservableProperty] private string _trafficInfo = "Brücke ist gestoppt.";
     [ObservableProperty] private bool _hasTraffic;
+    [ObservableProperty] private string _collisionText = "";
+    [ObservableProperty] private bool _hasCollisionWarning;
+
+    // ================================================================== task
+
+    public ObservableCollection<TaskPointRow> TaskPoints { get; } = new();
+    [ObservableProperty] private string _taskStatus = "Brücke ist gestoppt.";
+    [ObservableProperty] private string _taskTitle = "Keine Aufgabe";
+    [ObservableProperty] private bool _taskHasError;
+    private string _taskShownHash = "";
+
+    public static IReadOnlyList<Option<TaskMode>> TaskModeOptions { get; } = new[]
+    {
+        new Option<TaskMode>(TaskMode.Newest, "Zuletzt gespeicherte Aufgabe aus dem Condor-Ordner"),
+        new Option<TaskMode>(TaskMode.File, "Bestimmte Aufgabendatei (.fpl)"),
+        new Option<TaskMode>(TaskMode.Off, "Keine Aufgabe senden"),
+    };
+
+    public string TaskFolderHint => Runtime.Tasks.TaskProvider.DefaultFlightPlanFolder;
+
+    private void UpdateTask(BridgeEngine? engine)
+    {
+        if (engine is null)
+        {
+            TaskStatus = "Brücke ist gestoppt.";
+            return;
+        }
+        TaskStatus = engine.Tasks.Status;
+        TaskHasError = engine.Tasks.HasError;
+        var task = engine.Tasks.Current;
+        var hash = task?.Hash ?? "";
+        if (hash == _taskShownHash)
+            return;
+        _taskShownHash = hash;
+        TaskPoints.Clear();
+        TaskTitle = task is null ? "Keine Aufgabe" : $"{task.Name} · {task.Distance / 1000:0.0} km";
+        if (task is null)
+            return;
+        foreach (var tp in task.Turnpoints)
+        {
+            var role = tp.Role switch
+            {
+                Core.Tasks.TurnpointRole.Takeoff => "Startplatz",
+                Core.Tasks.TurnpointRole.Start => "Abflug",
+                Core.Tasks.TurnpointRole.Finish => "Ziel",
+                _ => "Wende",
+            };
+            var sector = tp.SectorType == 1
+                ? $"Fenster {tp.Width:0} × {tp.Height:0} m"
+                : tp.Angle >= 360 ? $"Zylinder {tp.Radius / 1000:0.#} km" : $"Sektor {tp.Angle:0}°, {tp.Radius / 1000:0.#} km";
+            TaskPoints.Add(new TaskPointRow(tp.Index.ToString(CultureInfo.CurrentCulture), role, tp.Name, sector,
+                tp.Position?.ToString() ?? ""));
+        }
+    }
+
+    [RelayCommand]
+    private void BrowseTaskFile()
+    {
+        var dlg = new Microsoft.Win32.OpenFileDialog { Title = "Condor-Aufgabe wählen", Filter = "Condor-Aufgabe (*.fpl)|*.fpl" };
+        var folder = string.IsNullOrWhiteSpace(Settings.Task.FlightPlanFolder) ? TaskFolderHint : Settings.Task.FlightPlanFolder;
+        if (Directory.Exists(folder))
+            dlg.InitialDirectory = folder;
+        if (dlg.ShowDialog() == true)
+        {
+            Settings.Task.FilePath = dlg.FileName;
+            Settings.Task.Mode = TaskMode.File;
+            NotifySettingsChanged();
+        }
+    }
 
     /// <summary>Choices for the own glider: "automatic" plus every pilot in the session.</summary>
     public ObservableCollection<Option<string>> OwnShipOptions { get; } = new() { new Option<string>("", AutoOwnShipLabel) };
@@ -622,15 +692,19 @@ public sealed partial class MainViewModel : ObservableObject
                 : $"eigenes Flugzeug: {own.DisplayName} {own.PilotName} ({(manual ? "manuell gewählt" : "automatisch erkannt")})" +
                   OwnAltitudeCheck(own, snap));
         HasTraffic = targets.Count > 0;
+        var alarms = engine.CurrentAlarms;
         RadarTargets = targets.Select(t => new RadarTarget(t.RelativeNorth, t.RelativeEast, t.RelativeVertical,
-            t.Pilot.DisplayName, t.Pilot.Heading)).ToList();
+            t.Pilot.DisplayName, t.Pilot.Heading, alarms.GetValueOrDefault(t.HexId))).ToList();
+        var worst = alarms.Count == 0 ? 0 : alarms.Values.Max();
+        CollisionText = worst == 0 ? "" : $"FLARM-Warnung Stufe {worst}: {string.Join(", ", targets.Where(t => alarms.GetValueOrDefault(t.HexId) == worst).Select(t => t.Pilot.DisplayName))}";
+        HasCollisionWarning = worst > 0;
         string F(double v, string f) => v.ToString(f, CultureInfo.CurrentCulture);
         Replace(Traffic, targets.Select(t => new TrafficRow(
             t.Pilot.DisplayName, t.Pilot.PilotName, t.Pilot.Plane,
             F(t.Distance / 1000, "0.0") + " km", F(t.Bearing, "0") + "°", F(t.RelativeVertical, "+0;-0;0") + " m",
             t.Altitude is { } alt ? F(alt, "N0") + " m" : "",
             t.Pilot.Speed is { } sp ? F(sp * 3.6, "0") + " km/h" : "", t.Pilot.Vario is { } v ? F(v, "+0.0;-0.0;0.0") + " m/s" : "",
-            t.Pilot.PlayerStatus)));
+            t.Pilot.PlayerStatus, alarms.GetValueOrDefault(t.HexId) is var lvl and > 0 ? $"⚠ {lvl}" : "")));
     }
 
     // ================================================================== monitor

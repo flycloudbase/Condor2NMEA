@@ -35,8 +35,13 @@ public sealed class TrafficTracker
     public DateTime SampleTime { get { lock (_lock) return _sampleTime; } }
     public int PilotCount { get { lock (_lock) return _pilots.Count; } }
 
+    private readonly TurnRateEstimator _turnRates = new();
+
     public void Update(IReadOnlyList<SpectatePilot> pilots, DateTime sampleTime)
     {
+        foreach (var p in pilots)
+            if (p.Heading is { } h && p.Id.Length > 0)
+                _turnRates.Update(p.Id, sampleTime, h);
         lock (_lock)
         {
             _pilots = pilots;
@@ -183,6 +188,7 @@ public sealed class TrafficTracker
                     RelativeEast = e,
                     RelativeVertical = v,
                     Altitude = p.Altitude is null ? null : alt,
+                    TurnRate = _turnRates.Get(p.Id),
                 };
                 if (MaxRangeMeters > 0 && t.Distance > MaxRangeMeters)
                     continue;
