@@ -28,6 +28,14 @@ public sealed partial class ComPortViewModel : ObservableObject
     [ObservableProperty] private bool _isInstalled;
     [ObservableProperty] private bool _busy;
     [ObservableProperty] private string _errorText = "";
+    /// <summary>com0com 3.x is installed – it does not load on current Windows 10/11.</summary>
+    [ObservableProperty] private bool _hasUnsupportedVersion;
+    /// <summary>com0com installed in a usable version (step 1 done).</summary>
+    [ObservableProperty] private bool _isUsable;
+    /// <summary>At least one pair exists whose driver Windows has not loaded.</summary>
+    [ObservableProperty] private bool _hasInactivePairs;
+
+    public string RecommendedPackage => Com0comManager.RecommendedPackage;
 
     /// <summary>A pair exists and the NMEA input reads its internal side.</summary>
     [ObservableProperty] private bool _portReady;
@@ -45,38 +53,44 @@ public sealed partial class ComPortViewModel : ObservableObject
     }
 
     [RelayCommand]
-    public async Task RefreshAsync()
+    public Task RefreshAsync()
     {
         ErrorText = "";
         var mgr = Manager;
         IsInstalled = mgr.IsInstalled;
         if (!IsInstalled)
         {
-            InstallStatus = "com0com ist noch nicht installiert.";
+            InstallStatus = $"com0com ist noch nicht installiert. Benötigt wird die signierte Version 2.2.2.0 ({Com0comManager.RecommendedPackage}).";
+            HasUnsupportedVersion = false;
+            IsUsable = false;
             Pairs.Clear();
             UpdateReady();
-            return;
+            return Task.CompletedTask;
         }
-        InstallStatus = $"com0com ist installiert ({mgr.InstallDirectory}).";
+
+        var version = mgr.InstalledVersion;
+        HasUnsupportedVersion = Com0comManager.IsUnsupportedVersion(version);
+        IsUsable = !HasUnsupportedVersion;
+        InstallStatus = HasUnsupportedVersion
+            ? $"Installiert ist com0com {version}. Diese Version wird von Windows 10/11 nicht geladen."
+            : $"com0com {version?.ToString() ?? ""} ist installiert ({mgr.InstallDirectory}).".Replace("  ", " ");
+
         try
         {
-            Busy = true;
-            var pairs = await mgr.ListPairsAsync();
+            var pairs = mgr.ListPairs();
             Pairs.Clear();
             foreach (var p in pairs)
                 Pairs.Add(p);
             SelectedPair = Pairs.FirstOrDefault(p => IsInput(p)) ?? Pairs.FirstOrDefault();
+            HasInactivePairs = Pairs.Any(p => !p.DriverActive);
         }
         catch (Exception ex)
         {
             ErrorText = ex.Message;
         }
-        finally
-        {
-            Busy = false;
-            ComNumber = SafeSuggest();
-            UpdateReady();
-        }
+        ComNumber = SafeSuggest();
+        UpdateReady();
+        return Task.CompletedTask;
     }
 
     private bool IsInput(Com0comPair p) =>
@@ -85,7 +99,7 @@ public sealed partial class ComPortViewModel : ObservableObject
     private void UpdateReady()
     {
         var input = Pairs.FirstOrDefault(IsInput);
-        PortReady = input is not null && _main.Settings.Serial.Enabled;
+        PortReady = input is not null && input.DriverActive && _main.Settings.Serial.Enabled;
         CondorPortName = input?.CondorPort ?? Pairs.FirstOrDefault()?.CondorPort ?? $"COM{ComNumber}";
         OnPropertyChanged(nameof(HasPairs));
     }
@@ -114,9 +128,15 @@ public sealed partial class ComPortViewModel : ObservableObject
         {
             ErrorText = "Die Administrator-Abfrage wurde abgebrochen.";
         }
-        catch (Exception ex)
+        catch (Com0comException ex)
         {
             ErrorText = ex.Message;
+            await RefreshAsync();
+            ErrorText = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            ErrorText = "Port anlegen fehlgeschlagen: " + ex.Message;
         }
         finally
         {
@@ -195,7 +215,21 @@ public sealed partial class ComPortViewModel : ObservableObject
     [RelayCommand]
     private void OpenDownload()
     {
+        try { Process.Start(new ProcessStartInfo(Com0comManager.DirectDownloadUrl) { UseShellExecute = true }); }
+        catch (Exception ex) { ErrorText = ex.Message; }
+    }
+
+    [RelayCommand]
+    private void OpenDownloadFolder()
+    {
         try { Process.Start(new ProcessStartInfo(Com0comManager.DownloadUrl) { UseShellExecute = true }); }
+        catch (Exception ex) { ErrorText = ex.Message; }
+    }
+
+    [RelayCommand]
+    private void OpenAppsSettings()
+    {
+        try { Process.Start(new ProcessStartInfo("ms-settings:appsfeatures") { UseShellExecute = true }); }
         catch (Exception ex) { ErrorText = ex.Message; }
     }
 }

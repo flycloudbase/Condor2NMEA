@@ -145,8 +145,12 @@ async Task<int> Com0com()
     switch (sub)
     {
         case "list":
-            foreach (var p in await mgr.ListPairsAsync())
-                Console.WriteLine($"  Paar {p.Index}: Condor → {p.CondorPort}   Condor2NMEA liest {p.AppPort}");
+            Console.WriteLine($"  com0com {mgr.InstalledVersion?.ToString() ?? "(Version unbekannt)"} in {mgr.InstallDirectory}");
+            if (Com0comManager.IsUnsupportedVersion(mgr.InstalledVersion))
+                Console.WriteLine($"  WARNUNG: com0com 3 lädt unter Windows 10/11 nicht. Signierte Version 2.2.2.0: {Com0comManager.DirectDownloadUrl}");
+            foreach (var p in mgr.ListPairs())
+                Console.WriteLine($"  Paar {p.Index}: Condor → {p.CondorPort}   Condor2NMEA liest {p.AppPort}" +
+                                  (p.DriverActive ? "" : "   (Treiber nicht geladen!)"));
             Console.WriteLine("  Vorhandene COM-Ports: " + string.Join(", ", ComPortRegistry.GetPresentPorts()));
             return 0;
         case "create":

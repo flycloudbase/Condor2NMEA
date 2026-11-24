@@ -43,18 +43,39 @@
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
-                    <c:StepBadge Number="1" IsDone="{Binding ComPort.IsInstalled}" VerticalAlignment="Top" Margin="0,0,18,0" />
+                    <c:StepBadge Number="1" IsDone="{Binding ComPort.IsUsable}" VerticalAlignment="Top" Margin="0,0,18,0" />
                     <StackPanel Grid.Column="1">
                         <TextBlock Style="{StaticResource StepTitle}" Text="Treiber com0com installieren" />
-                        <TextBlock Style="{StaticResource StepText}"
-                                   Text="Condor gibt NMEA nur über einen COM-Port aus. Den virtuellen Port stellt der kostenlose Treiber com0com bereit. Bei der Installation alle Häkchen für Beispiel-Ports entfernen – den Port legt Condor2NMEA im nächsten Schritt selbst an." />
-                        <TextBlock Style="{StaticResource Caption}" Text="{Binding ComPort.InstallStatus}" Margin="0,8,0,0" />
+                        <TextBlock Style="{StaticResource StepText}">
+                            <Run Text="Condor gibt NMEA nur über einen COM-Port aus. Den virtuellen Port stellt der kostenlose Treiber com0com bereit. Wichtig ist die" />
+                            <Run Text="signierte Version 2.2.2.0" FontWeight="SemiBold" />
+                            <Run Text="– die neuere Version 3.0 wird von Windows 10/11 nicht geladen." />
+                        </TextBlock>
+                        <TextBlock Style="{StaticResource StepText}" Margin="0,8,0,0">
+                            <Run Text="1. Herunterladen:" FontWeight="SemiBold" />
+                            <Run Text="{Binding ComPort.RecommendedPackage, Mode=OneWay}" />
+                            <LineBreak />
+                            <Run Text="2. ZIP entpacken und setup.exe starten." />
+                            <LineBreak />
+                            <Run Text="3. Bei den Komponenten „CNCA0 ↔ CNCB0“ und „COM# ↔ COM#“ die Häkchen entfernen – den Port legt Condor2NMEA selbst an." />
+                            <LineBreak />
+                            <Run Text="4. Die Windows-Sicherheitsabfrage zur Treiberinstallation bestätigen, dann „Erneut prüfen“." />
+                        </TextBlock>
+                        <TextBlock Style="{StaticResource Caption}" Text="{Binding ComPort.InstallStatus}" Margin="0,10,0,0" />
+                        <ui:InfoBar Margin="0,10,0,0" Title="Falsche com0com-Version" Severity="Error" IsClosable="False"
+                                    IsOpen="{Binding ComPort.HasUnsupportedVersion}"
+                                    Message="com0com 3.0 bitte in den Windows-Einstellungen unter „Apps“ deinstallieren und danach die signierte Version 2.2.2.0 installieren." />
                         <WrapPanel Style="{StaticResource ActionRow}">
-                            <ui:Button Content="com0com herunterladen" Icon="{ui:SymbolIcon ArrowDownload24}" Appearance="Primary"
+                            <ui:Button Content="com0com 2.2.2.0 herunterladen" Icon="{ui:SymbolIcon ArrowDownload24}" Appearance="Primary"
                                        Command="{Binding ComPort.OpenDownloadCommand}" Margin="0,0,8,0"
-                                       Visibility="{Binding ComPort.IsInstalled, Converter={StaticResource InverseBoolToVisibility}}" />
+                                       Visibility="{Binding ComPort.IsUsable, Converter={StaticResource InverseBoolToVisibility}}" />
+                            <ui:Button Content="Apps-Einstellungen öffnen" Icon="{ui:SymbolIcon Settings24}" Margin="0,0,8,0"
+                                       Command="{Binding ComPort.OpenAppsSettingsCommand}"
+                                       Visibility="{Binding ComPort.HasUnsupportedVersion, Converter={StaticResource BoolToVisibility}}" />
                             <ui:Button Content="Erneut prüfen" Icon="{ui:SymbolIcon ArrowClockwise24}"
                                        Command="{Binding ComPort.RefreshCommand}" Margin="0,0,8,0" />
+                            <ui:Button Content="Alle Downloads" Icon="{ui:SymbolIcon Open24}" Appearance="Transparent"
+                                       Command="{Binding ComPort.OpenDownloadFolderCommand}" Margin="0,0,8,0" />
                             <ui:Button Content="Ordner wählen …" Icon="{ui:SymbolIcon FolderOpen24}" Appearance="Transparent"
                                        Command="{Binding ComPort.BrowseCom0comCommand}" />
                         </WrapPanel>
@@ -79,11 +100,14 @@
                             <ui:TextBox Text="{Binding ComPort.ComNumber, UpdateSourceTrigger=PropertyChanged}" Width="70" Margin="0,0,10,0"
                                         ToolTip="Nummer des COM-Ports, den Condor sehen soll" />
                             <ui:Button Content="Port anlegen" Icon="{ui:SymbolIcon Add24}" Appearance="Primary"
-                                       Command="{Binding ComPort.CreatePairCommand}" IsEnabled="{Binding ComPort.IsInstalled}" Margin="0,0,12,0" />
+                                       Command="{Binding ComPort.CreatePairCommand}" IsEnabled="{Binding ComPort.IsUsable}" Margin="0,0,12,0" />
                             <ui:ProgressRing IsIndeterminate="True" Width="24" Height="24"
                                              Visibility="{Binding ComPort.Busy, Converter={StaticResource BoolToVisibility}}" />
                         </WrapPanel>
                         <TextBlock Style="{StaticResource ErrorText}" Text="{Binding ComPort.ErrorText}" />
+                        <ui:InfoBar Margin="0,10,0,0" Title="Port ohne Treiber" Severity="Warning" IsClosable="False"
+                                    IsOpen="{Binding ComPort.HasInactivePairs}"
+                                    Message="Mindestens ein Port ist eingetragen, aber Windows hat den com0com-Treiber nicht geladen (meist falsche Version). Port entfernen, com0com 2.2.2.0 signiert installieren und neu anlegen." />
 
                         <ItemsControl ItemsSource="{Binding ComPort.Pairs}" Margin="0,14,0,0">
                             <ItemsControl.ItemTemplate>
@@ -104,6 +128,21 @@
                                                 <Run Text="{Binding CondorPort, Mode=OneWay}" FontWeight="SemiBold" />
                                                 <Run Text="  ·  Condor2NMEA liest" />
                                                 <Run Text="{Binding AppPort, Mode=OneWay}" FontWeight="SemiBold" />
+                                                <LineBreak />
+                                                <Run FontSize="12">
+                                                    <Run.Style>
+                                                        <Style TargetType="Run">
+                                                            <Setter Property="Text" Value="● Port aktiv" />
+                                                            <Setter Property="Foreground" Value="{StaticResource StatusGoodBrush}" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding DriverActive}" Value="False">
+                                                                    <Setter Property="Text" Value="● Treiber nicht geladen – Port funktioniert nicht" />
+                                                                    <Setter Property="Foreground" Value="{StaticResource StatusErrorBrush}" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Run.Style>
+                                                </Run>
                                             </TextBlock>
                                             <StackPanel Grid.Column="2" Orientation="Horizontal">
                                                 <ui:Button Content="Verwenden" Margin="0,0,6,0"
