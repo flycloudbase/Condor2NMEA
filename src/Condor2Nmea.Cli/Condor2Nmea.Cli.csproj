@@ -3,8 +3,6 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
     <AssemblyName>condor2nmea</AssemblyName>
-    <!-- 32-bit like Condor: Condor's NaviCon.dll (task coordinates) is 32-bit and only loads into a 32-bit process -->
-    <PlatformTarget>x86</PlatformTarget>
     <RootNamespace>Condor2Nmea.Cli</RootNamespace>
   </PropertyGroup>
   <ItemGroup>

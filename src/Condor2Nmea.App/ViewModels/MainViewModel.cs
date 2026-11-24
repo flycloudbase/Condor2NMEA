@@ -378,7 +378,6 @@ public sealed partial class MainViewModel : ObservableObject
         UpdateOutputs(engine, now);
         UpdateInstruments(engine, snap, now);
         UpdateTraffic(engine, snap, now);
-        UpdateTask(engine);
         UpdateHero(engine, now);
     }
 
@@ -526,73 +525,6 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty] private bool _hasTraffic;
     [ObservableProperty] private string _collisionText = "";
     [ObservableProperty] private bool _hasCollisionWarning;
-
-    // ================================================================== task
-
-    public ObservableCollection<TaskPointRow> TaskPoints { get; } = new();
-    [ObservableProperty] private string _taskStatus = "Brücke ist gestoppt.";
-    [ObservableProperty] private string _taskTitle = "Keine Aufgabe";
-    [ObservableProperty] private bool _taskHasError;
-    private string _taskShownHash = "";
-
-    public static IReadOnlyList<Option<TaskMode>> TaskModeOptions { get; } = new[]
-    {
-        new Option<TaskMode>(TaskMode.Newest, "Zuletzt gespeicherte Aufgabe aus dem Condor-Ordner"),
-        new Option<TaskMode>(TaskMode.File, "Bestimmte Aufgabendatei (.fpl)"),
-        new Option<TaskMode>(TaskMode.Off, "Keine Aufgabe senden"),
-    };
-
-    public string TaskFolderHint => Runtime.Tasks.TaskProvider.DefaultFlightPlanFolder;
-
-    private void UpdateTask(BridgeEngine? engine)
-    {
-        if (engine is null)
-        {
-            TaskStatus = "Brücke ist gestoppt.";
-            return;
-        }
-        TaskStatus = engine.Tasks.Status;
-        TaskHasError = engine.Tasks.HasError;
-        var task = engine.Tasks.Current;
-        var hash = task?.Hash ?? "";
-        if (hash == _taskShownHash)
-            return;
-        _taskShownHash = hash;
-        TaskPoints.Clear();
-        TaskTitle = task is null ? "Keine Aufgabe" : $"{task.Name} · {task.Distance / 1000:0.0} km";
-        if (task is null)
-            return;
-        foreach (var tp in task.Turnpoints)
-        {
-            var role = tp.Role switch
-            {
-                Core.Tasks.TurnpointRole.Takeoff => "Startplatz",
-                Core.Tasks.TurnpointRole.Start => "Abflug",
-                Core.Tasks.TurnpointRole.Finish => "Ziel",
-                _ => "Wende",
-            };
-            var sector = tp.SectorType == 1
-                ? $"Fenster {tp.Width:0} × {tp.Height:0} m"
-                : tp.Angle >= 360 ? $"Zylinder {tp.Radius / 1000:0.#} km" : $"Sektor {tp.Angle:0}°, {tp.Radius / 1000:0.#} km";
-            TaskPoints.Add(new TaskPointRow(tp.Index.ToString(CultureInfo.CurrentCulture), role, tp.Name, sector,
-                tp.Position?.ToString() ?? ""));
-        }
-    }
-
-    [RelayCommand]
-    private void BrowseTaskFile()
-    {
-        var dlg = new Microsoft.Win32.OpenFileDialog { Title = "Condor-Aufgabe wählen", Filter = "Condor-Aufgabe (*.fpl)|*.fpl" };
-        var folder = string.IsNullOrWhiteSpace(Settings.Task.FlightPlanFolder) ? TaskFolderHint : Settings.Task.FlightPlanFolder;
-        if (Directory.Exists(folder))
-            dlg.InitialDirectory = folder;
-        if (dlg.ShowDialog() == true)
-        {
-            Settings.Task.FilePath = dlg.FileName;
-            Settings.Task.Mode = TaskMode.File;
-            NotifySettingsChanged();
-        }
-    }
 
     /// <summary>Choices for the own glider: "automatic" plus every pilot in the session.</summary>
     public ObservableCollection<Option<string>> OwnShipOptions { get; } = new() { new Option<string>("", AutoOwnShipLabel) };

@@ -30,9 +30,9 @@ jobs:
       - name: Test
         run: dotnet test tests/Condor2Nmea.Tests -c Release --no-build
       - name: Publish desktop app
-        run: dotnet publish src/Condor2Nmea.App -c Release -r win-x86 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish/app
+        run: dotnet publish src/Condor2Nmea.App -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish/app
       - name: Publish command line tool
-        run: dotnet publish src/Condor2Nmea.Cli -c Release -r win-x86 --self-contained true -p:PublishSingleFile=true -o publish/cli
+        run: dotnet publish src/Condor2Nmea.Cli -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish/cli
       - name: UI smoke test (open every page with demo data, take screenshots)
         shell: pwsh
         run: |
@@ -52,7 +52,7 @@ jobs:
           if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
         with:
-          name: Condor2NMEA-win-x86
+          name: Condor2NMEA-win-x64
           path: |
             publish/app/Condor2NMEA.exe
             publish/cli/condor2nmea.exe

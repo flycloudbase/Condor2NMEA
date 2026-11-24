@@ -17,7 +17,7 @@ sodass HW VSP3 o. ä. nicht mehr nötig ist.
 | FLARM | `$PFLAA` und `$PFLAU` nach FLARM Data Port ICD (FTD-012 7.23) mit berechneten Kollisionswarnungen (Stufe 1–3, siehe [docs/FLARM-Warnungen.md](docs/FLARM-Warnungen.md)), `$PFLAM` (Pilot, Wettbewerbskennung, Kennzeichen, Muster) |
 | OpenVario | `$POV` (TE, unkompensiert, TAS, G-Last) für ein zweites XCSoar-Gerät |
 | Raw | Condor-NMEA unverändert |
-| Cloudbase | eigene Sätze `$PCBC,DATA/INFO/EVENT` und die Condor-Aufgabe als `$PCBC,TASK/TP` mit Netto, IAS, Lage, G-Last, Höhe über Grund, MacCready, Ballast, Klappen, Funkfrequenz, Rennstand und Condor-Meldungen – siehe [docs/PCBC.md](docs/PCBC.md) |
+| Cloudbase | eigene Sätze `$PCBC,DATA/INFO/EVENT` mit Netto, IAS, Lage, G-Last, Höhe über Grund, MacCready, Ballast, Klappen, Funkfrequenz, Rennstand und Condor-Meldungen – siehe [docs/PCBC.md](docs/PCBC.md) |
 
 ## Schnellstart
 
@@ -59,12 +59,10 @@ Einstellungen liegen in `%APPDATA%\Condor2NMEA\settings.json`. Mit *Aufzeichnung
 ```
 dotnet build Condor2Nmea.sln
 dotnet test tests/Condor2Nmea.Tests
-dotnet publish src/Condor2Nmea.App -c Release -r win-x86 --self-contained -p:PublishSingleFile=true
+dotnet publish src/Condor2Nmea.App -c Release -r win-x64 --self-contained -p:PublishSingleFile=true
 ```
 
-Condor2NMEA ist ein reines Windows-Programm (.NET 8, WPF mit [WPF-UI](https://github.com/lepoco/wpfui) im Fluent-Design),
-gebaut als **32-Bit (x86)** wie Condor selbst: Nur so lässt sich Condors 32-Bit-`NaviCon.dll` laden, die die Wendepunkte
-der Aufgabe umrechnet.
+Condor2NMEA ist ein reines Windows-Programm (.NET 8, WPF mit [WPF-UI](https://github.com/lepoco/wpfui) im Fluent-Design).
 GitHub Actions baut bei jedem Push auf einen Arbeitsbranch (nicht beim Öffnen eines PRs, nicht beim Merge auf `main`, nicht bei reinen Doku-Änderungen) und stellt `Condor2NMEA.exe` und `condor2nmea.exe` als Artefakt bereit. Von Hand startbar unter Actions → build → Run workflow.
 
 ## Projektstruktur

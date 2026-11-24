@@ -80,8 +80,6 @@ public sealed partial class InstrumentTile : ObservableObject
 public sealed record TrafficRow(string Cn, string Pilot, string Plane, string Distance, string Bearing,
     string Vertical, string Altitude, string Speed, string Vario, string Status, string Alarm = "");
 
-public sealed record TaskPointRow(string Number, string Role, string Name, string Sector, string Position);
-
 public sealed record MonitorRow(string Time, string Direction, string Channel, string Text, Brush Brush);
 
 public sealed record Option<T>(T Value, string Label);
