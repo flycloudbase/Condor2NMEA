@@ -37,6 +37,8 @@
                 </Grid>
             </ui:Card>
 
+            <ui:InfoBar Margin="0,12,0,0" Title="Kollisionswarnung" Severity="Error" IsClosable="False"
+                        IsOpen="{Binding HasCollisionWarning}" Message="{Binding CollisionText}" />
             <ui:InfoBar Margin="0,12,0,0" Title="Condor neu starten" Severity="Warning" IsClosable="False"
                         IsOpen="{Binding HasCondorWarning}" Message="{Binding CondorWarning}" />
 

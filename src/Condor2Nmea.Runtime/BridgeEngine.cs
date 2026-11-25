@@ -289,8 +289,15 @@ public sealed class BridgeEngine : IInputSink, IAsyncDisposable
                 if (_announcedIds.Add(t.HexId))
                     names.AddRange(FlarmSentences.Pflam(t));
             // ICD order: {PFLAA}n, then the PFLAU heartbeat
-            flarmLines.AddRange(FlarmSentences.Pflaa(targets, _flarmOptions));
-            flarmLines.Add(FlarmSentences.Pflau(Traffic.PilotCount > 0 ? Math.Max(targets.Count, Traffic.PilotCount - 1) : 0, GpsStatusOf(snap)));
+            var alarms = ComputeAlarms(now, snap, targets);
+            CurrentAlarms = alarms;
+            flarmLines.AddRange(FlarmSentences.Pflaa(targets, _flarmOptions, alarms));
+            var rx = Traffic.PilotCount > 0 ? Math.Max(targets.Count, Traffic.PilotCount - 1) : 0;
+            var worst = targets.Where(t => alarms.GetValueOrDefault(t.HexId) > 0)
+                .OrderByDescending(t => alarms[t.HexId]).ThenBy(t => t.Distance).FirstOrDefault();
+            flarmLines.Add(worst is not null && snap.Track is { } ownTrack
+                ? FlarmSentences.PflauAlarm(rx, GpsStatusOf(snap), alarms[worst.HexId], worst, ownTrack)
+                : FlarmSentences.Pflau(rx, GpsStatusOf(snap)));
             // names are kept separate so outputs without FlarmNames can skip them
             _pendingNames = names;
         }
@@ -343,6 +350,37 @@ public sealed class BridgeEngine : IInputSink, IAsyncDisposable
     }
 
     private List<string> _pendingNames = new();
+
+    // ------------------------------------------------------------------ collision warnings
+
+    private readonly TurnRateEstimator _ownTurn = new();
+    private readonly AlarmHold _alarmHold = new();
+
+    /// <summary>Alarm level per target id of the last FLARM cycle (for the UI).</summary>
+    public IReadOnlyDictionary<uint, int> CurrentAlarms { get; private set; } = new Dictionary<uint, int>();
+
+    private Dictionary<uint, int> ComputeAlarms(DateTime now, FlightSnapshot snap, IReadOnlyList<TrafficTarget> targets)
+    {
+        var result = new Dictionary<uint, int>();
+        if (!_settings.Collision.Enabled || snap.GroundSpeed is not { } gs || snap.Track is not { } track ||
+            GpsStatusOf(snap) != FlarmSentences.GpsStatus.Airborne)
+            return result;
+        var own = new AircraftMotion(0, 0, 0, gs, track, _ownTurn.Update("own", now, track), snap.TeVario ?? 0);
+        foreach (var t in targets)
+        {
+            var level = 0;
+            if (t.Pilot.Speed is { } speed && t.Pilot.Heading is { } heading)
+            {
+                var other = new AircraftMotion(t.RelativeNorth, t.RelativeEast, t.RelativeVertical, speed, heading,
+                    t.TurnRate, t.Pilot.Vario ?? 0);
+                level = CollisionPredictor.Predict(own, other).AlarmLevel;
+            }
+            level = _alarmHold.Apply(t.HexId, level, now);
+            if (level > 0)
+                result[t.HexId] = level;
+        }
+        return result;
+    }
 
     /// <summary>PFLAU &lt;GPS&gt;: no fix, 3D fix on the ground, 3D fix airborne.</summary>
     private static FlarmSentences.GpsStatus GpsStatusOf(FlightSnapshot snap)

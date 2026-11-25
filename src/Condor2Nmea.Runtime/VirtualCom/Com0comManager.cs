@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.Win32;
 
@@ -14,19 +15,47 @@ public sealed record Com0comPair(int Index, string PortA, string PortB, string P
     /// <summary>The side Condor2NMEA opens.</summary>
     public string AppPort => CondorPort == PortA ? PortB : PortA;
 
+    /// <summary>
+    /// Windows has loaded the driver and published the COM port (it appears in HARDWARE\DEVICEMAP\SERIALCOMM).
+    /// False means the pair exists in com0com's configuration but the port does not work – usually because
+    /// Windows refused the driver (signature).
+    /// </summary>
+    public bool DriverActive { get; init; } = true;
+
     private static bool IsComName(string s) => ComPortRegistry.ComNumber(s) is not null;
 
     public override string ToString() => $"{CondorPort} ↔ {AppPort}";
 }
 
+/// <summary>Result of a setupc.exe run.</summary>
+public sealed record SetupcResult(int ExitCode, string Output);
+
 /// <summary>
-/// Controls com0com (https://com0com.sourceforge.net) via its command line tool setupc.exe.
-/// Creating and removing ports requires administrator rights; the tool is then started elevated
-/// (UAC prompt) and its output is captured through a temporary file.
+/// Controls com0com (https://sourceforge.net/projects/com0com/) via its command line tool setupc.exe.
+/// <list type="bullet">
+/// <item>Listing works without administrator rights: the pairs are read from the registry
+/// (HKLM\SYSTEM\CurrentControlSet\Services\com0com\Parameters\CNCxN, value PortName).</item>
+/// <item>Creating and removing needs administrator rights. setupc.exe is started elevated through a small script
+/// in %ProgramData%\Condor2NMEA, which also captures the output and the exit code.</item>
+/// <item>com0com 3.0 is only test-signed and does not load on current Windows 10/11; the signed 2.2.2.0 does.
+/// Both are detected and reported.</item>
+/// </list>
 /// </summary>
 public sealed partial class Com0comManager
 {
-    public const string DownloadUrl = "https://sourceforge.net/projects/com0com/files/com0com/";
+    /// <summary>Folder with the signed 2.2.2.0 packages (x64 and i386).</summary>
+    public const string DownloadUrl = "https://sourceforge.net/projects/com0com/files/com0com/2.2.2.0/";
+
+    /// <summary>Direct download of the signed 2.2.2.0 package matching this Windows.</summary>
+    public static string DirectDownloadUrl =>
+        $"https://sourceforge.net/projects/com0com/files/com0com/2.2.2.0/{RecommendedPackage}/download";
+
+    /// <summary>File name of the signed 2.2.2.0 package matching this Windows.</summary>
+    public static string RecommendedPackage =>
+        Environment.Is64BitOperatingSystem ? "com0com-2.2.2.0-x64-fre-signer.zip" : "com0com-2.2.2.0-i386-fre-signer.zip";
+
+    private const string ParametersKey = @"SYSTEM\CurrentControlSet\Services\com0com\Parameters";
+    private static readonly TimeSpan SetupcTimeout = TimeSpan.FromSeconds(120);
 
     private readonly string? _configuredPath;
 
@@ -36,6 +65,37 @@ public sealed partial class Com0comManager
     public string? InstallDirectory => FindInstallDirectory(_configuredPath);
 
     public bool IsInstalled => InstallDirectory is not null;
+
+    /// <summary>File version of the installed com0com (from setupc.exe), null if unknown.</summary>
+    public Version? InstalledVersion
+    {
+        get
+        {
+            var dir = InstallDirectory;
+            if (dir is null)
+                return null;
+            foreach (var file in new[] { "setupc.exe", "com0com.sys", "setup.dll" })
+            {
+                try
+                {
+                    var path = Path.Combine(dir, file);
+                    if (!File.Exists(path))
+                        continue;
+                    var info = FileVersionInfo.GetVersionInfo(path);
+                    if (info.FileMajorPart > 0)
+                        return new Version(info.FileMajorPart, info.FileMinorPart, info.FileBuildPart, info.FilePrivatePart);
+                }
+                catch (Exception)
+                {
+                    // try the next file
+                }
+            }
+            return null;
+        }
+    }
+
+    /// <summary>com0com 3.x is test-signed only and cannot be installed on current Windows 10/11.</summary>
+    public static bool IsUnsupportedVersion(Version? v) => v is { Major: >= 3 };
 
     public static string? FindInstallDirectory(string? configured)
     {
@@ -77,45 +137,26 @@ public sealed partial class Com0comManager
         return result;
     }
 
-    /// <summary>
-    /// Lists all pairs. setupc.exe always demands administrator rights (even for "list"), so the
-    /// pairs are read from the registry, where com0com keeps its port parameters. Only if that
-    /// fails and <paramref name="allowElevation"/> is set, "setupc list" is run elevated (UAC prompt).
-    /// </summary>
-    public async Task<IReadOnlyList<Com0comPair>> ListPairsAsync(bool allowElevation = false)
-    {
-        if (ReadPairsFromRegistry() is { } fromRegistry)
-            return fromRegistry;
-        if (!allowElevation)
-            throw new InvalidOperationException(
-                "Die com0com-Ports konnten nicht aus der Registry gelesen werden. „Aktualisieren“ fragt nach Administratorrechten.");
-        var output = await RunAsync("list", elevated: true).ConfigureAwait(false);
-        return ParseList(output);
-    }
+    // ------------------------------------------------------------------ listing
+
+    /// <summary>Lists all pairs from the registry (no administrator rights needed).</summary>
+    public IReadOnlyList<Com0comPair> ListPairs() => ReadPairsFromRegistry() ?? Array.Empty<Com0comPair>();
 
     /// <summary>
-    /// Reads HKLM\SYSTEM\CurrentControlSet\Services\com0com\Parameters\CNCxN (value PortName) and
-    /// resolves "COM#" names through HKLM\HARDWARE\DEVICEMAP\SERIALCOMM (\Device\com0com1N / 2N).
-    /// Returns null if com0com's registry key does not exist.
+    /// Reads HKLM\SYSTEM\CurrentControlSet\Services\com0com\Parameters\CNCxN (value PortName), resolves "COM#"
+    /// names and checks with HKLM\HARDWARE\DEVICEMAP\SERIALCOMM whether Windows has published the port.
+    /// Returns null if com0com's key does not exist (not installed, or installed without any pair).
     /// </summary>
     public static IReadOnlyList<Com0comPair>? ReadPairsFromRegistry()
     {
         try
         {
             using var hklm = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64);
-            using var parameters = hklm.OpenSubKey(@"SYSTEM\CurrentControlSet\Services\com0com\Parameters");
+            using var parameters = hklm.OpenSubKey(ParametersKey);
             if (parameters is null)
                 return null;
 
-            var serialComm = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            using (var map = hklm.OpenSubKey(@"HARDWARE\DEVICEMAP\SERIALCOMM"))
-            {
-                if (map is not null)
-                    foreach (var name in map.GetValueNames())
-                        if (map.GetValue(name) is string port)
-                            serialComm[name] = port;
-            }
-
+            var serialComm = SerialCommMap(hklm);
             var lines = new List<string>();
             foreach (var id in parameters.GetSubKeyNames())
             {
@@ -130,7 +171,11 @@ public sealed partial class Com0comManager
                     line += $",RealPortName={real}";
                 lines.Add(line);
             }
-            return ParseList(string.Join("\n", lines));
+
+            var published = new HashSet<string>(serialComm.Values, StringComparer.OrdinalIgnoreCase);
+            return ParseList(string.Join("\n", lines))
+                .Select(p => p with { DriverActive = published.Contains(p.CondorPort) })
+                .ToList();
         }
         catch (Exception ex) when (ex is UnauthorizedAccessException or System.Security.SecurityException or IOException)
         {
@@ -138,27 +183,70 @@ public sealed partial class Com0comManager
         }
     }
 
+    private static Dictionary<string, string> SerialCommMap(RegistryKey hklm)
+    {
+        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        using var key = hklm.OpenSubKey(@"HARDWARE\DEVICEMAP\SERIALCOMM");
+        if (key is null)
+            return map;
+        foreach (var name in key.GetValueNames())
+            if (key.GetValue(name) is string port)
+                map[name] = port;
+        return map;
+    }
+
+    // ------------------------------------------------------------------ create / remove
+
     /// <summary>
-    /// Creates a new pair: side A gets the name COM&lt;comNumber&gt; (visible to Condor), side B keeps
-    /// its internal name CNCB&lt;n&gt; (not shown as a COM port, opened by this program).
+    /// Creates a new pair: side A gets the name COM&lt;comNumber&gt; (visible to Condor), side B keeps its internal
+    /// name CNCB&lt;n&gt; (not shown as a COM port, opened by this program). Waits until Windows has set up the
+    /// devices and checks that the port really works.
     /// </summary>
-    public async Task<Com0comPair> CreatePairAsync(int comNumber)
+    /// <exception cref="Com0comException">With a user readable German explanation.</exception>
+    public async Task<Com0comPair> CreatePairAsync(int comNumber, CancellationToken token = default)
     {
         if (comNumber is < 1 or > 255)
             throw new ArgumentOutOfRangeException(nameof(comNumber));
-        var before = ReadPairsFromRegistry() ?? Array.Empty<Com0comPair>();
-        var output = await RunAsync($"--silent install PortName=COM{comNumber} -", elevated: true).ConfigureAwait(false);
-        // setupc prints the new pair ("CNCA1 PortName=COM9" / "CNCB1 PortName=-")
-        var created = ParseList(output).FirstOrDefault()
-                      ?? (ReadPairsFromRegistry() ?? Array.Empty<Com0comPair>()).FirstOrDefault(p => before.All(b => b.Index != p.Index));
-        return created ?? throw new InvalidOperationException("com0com hat kein neues Paar angelegt:\n" + output);
+        var version = InstalledVersion;
+        if (IsUnsupportedVersion(version))
+            throw new Com0comException(
+                $"Installiert ist com0com {version}. Version 3 ist nur testsigniert und wird von Windows 10/11 nicht geladen. " +
+                "Bitte com0com über „Apps“ in den Windows-Einstellungen deinstallieren und die signierte Version 2.2.2.0 installieren.");
+
+        var before = ListPairs();
+        var result = await RunElevatedAsync($"--silent install PortName=COM{comNumber} -", token).ConfigureAwait(false);
+
+        // setupc prints the new pair ("CNCA1 PortName=COM9" / "CNCB1 PortName=-"); the registry is the reference
+        Com0comPair? created = null;
+        // Windows installs the devices in the background; give it up to 30 s to publish the port
+        for (var attempt = 0; attempt < 60 && !token.IsCancellationRequested; attempt++)
+        {
+            var now = ListPairs();
+            created = now.FirstOrDefault(p => before.All(b => b.Index != p.Index))
+                      ?? now.FirstOrDefault(p => string.Equals(p.CondorPort, $"COM{comNumber}", StringComparison.OrdinalIgnoreCase));
+            if (created is { DriverActive: true })
+                return created;
+            await Task.Delay(500, token).ConfigureAwait(false);
+        }
+
+        if (created is null)
+            throw new Com0comException(
+                $"com0com hat kein neues Port-Paar angelegt (Rückgabewert {result.ExitCode}).\n\nAusgabe von setupc:\n{Trim(result.Output)}");
+
+        throw new Com0comException(
+            $"Das Port-Paar {created} wurde eingetragen, aber Windows stellt den Port nicht bereit. " +
+            "Meist lädt Windows den com0com-Treiber nicht, weil er nicht passend signiert ist (Geräte-Manager: Code 52). " +
+            $"Abhilfe: com0com deinstallieren und die signierte Version 2.2.2.0 ({RecommendedPackage}) installieren." +
+            (version is null ? "" : $" Gefundene Version: {version}."));
     }
 
-    public Task RemovePairAsync(int index) => RunAsync($"--silent remove {index}", elevated: true);
-
-    /// <summary>Renames one side, e.g. ("CNCA0", "COM9").</summary>
-    public Task RenamePortAsync(string portId, string newName) =>
-        RunAsync($"--silent change {portId} PortName={newName}", elevated: true);
+    public async Task RemovePairAsync(int index, CancellationToken token = default)
+    {
+        var result = await RunElevatedAsync($"--silent remove {index}", token).ConfigureAwait(false);
+        if (ListPairs().Any(p => p.Index == index))
+            throw new Com0comException(
+                $"Das Port-Paar {index} konnte nicht entfernt werden (Rückgabewert {result.ExitCode}).\n\nAusgabe von setupc:\n{Trim(result.Output)}");
+    }
 
     // ------------------------------------------------------------------ parsing
 
@@ -211,39 +299,91 @@ public sealed partial class Com0comManager
     [GeneratedRegex(@"^CNC([AB])(\d+)\s*(.*)$", RegexOptions.IgnoreCase)]
     private static partial Regex ListLine();
 
-    // ------------------------------------------------------------------ process
+    // ------------------------------------------------------------------ elevated setupc
 
-    private async Task<string> RunAsync(string arguments, bool elevated = true)
+    /// <summary>
+    /// Builds the batch script that runs setupc.exe from its own folder (it needs its .inf files there) and
+    /// writes output and exit code to files. A script avoids quoting problems with paths like
+    /// "C:\Program Files (x86)\com0com".
+    /// </summary>
+    public static string BuildScript(string installDir, string arguments, string outputFile, string exitFile) =>
+        string.Join("\r\n",
+            "@echo off",
+            "chcp 65001 >nul",
+            $"cd /d \"{installDir}\"",
+            $"setupc.exe {arguments} > \"{outputFile}\" 2>&1",
+            $"echo %ERRORLEVEL% > \"{exitFile}\"",
+            "");
+
+    private async Task<SetupcResult> RunElevatedAsync(string arguments, CancellationToken token)
     {
         var dir = InstallDirectory
-                  ?? throw new InvalidOperationException("com0com ist nicht installiert (setupc.exe nicht gefunden).");
-        var setupc = Path.Combine(dir, "setupc.exe");
+                  ?? throw new Com0comException("com0com ist nicht installiert (setupc.exe nicht gefunden).");
 
-        // Elevated: ShellExecute "runas" cannot redirect, so let cmd write the output to a temp file.
-        var tmp = Path.Combine(Path.GetTempPath(), $"condor2nmea-setupc-{Guid.NewGuid():N}.txt");
-        var cmd = $"/s /c \"cd /d \"{dir}\" && setupc.exe {arguments} > \"{tmp}\" 2>&1\"";
-        var elevatedPsi = new ProcessStartInfo("cmd.exe", cmd)
+        // %ProgramData% is readable for the user and writable for the elevated process, also when UAC asks for
+        // another administrator account (the user's %TEMP% would not be accessible then)
+        var work = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "Condor2NMEA", "setupc");
+        Directory.CreateDirectory(work);
+        var id = Guid.NewGuid().ToString("N");
+        var script = Path.Combine(work, $"run-{id}.cmd");
+        var output = Path.Combine(work, $"out-{id}.txt");
+        var exit = Path.Combine(work, $"exit-{id}.txt");
+        await File.WriteAllTextAsync(script, BuildScript(dir, arguments, output, exit), new UTF8Encoding(false), token).ConfigureAwait(false);
+
+        var psi = new ProcessStartInfo("cmd.exe", $"/c \"{script}\"")
         {
             UseShellExecute = true,
             Verb = "runas",
             WindowStyle = ProcessWindowStyle.Hidden,
+            WorkingDirectory = dir,
         };
         try
         {
-            using var p = Process.Start(elevatedPsi) ?? throw new InvalidOperationException("setupc.exe startet nicht");
-            await p.WaitForExitAsync().ConfigureAwait(false);
-            var output = File.Exists(tmp) ? await File.ReadAllTextAsync(tmp).ConfigureAwait(false) : "";
-            if (p.ExitCode != 0)
-                throw new InvalidOperationException($"setupc.exe {arguments} fehlgeschlagen (Code {p.ExitCode}):\n{output}");
-            return output;
+            using var p = Process.Start(psi) ?? throw new Com0comException("setupc.exe konnte nicht gestartet werden.");
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
+            timeout.CancelAfter(SetupcTimeout);
+            try
+            {
+                await p.WaitForExitAsync(timeout.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (!token.IsCancellationRequested)
+            {
+                throw new Com0comException(
+                    "setupc.exe antwortet seit 2 Minuten nicht. Vermutlich wartet eine Windows-Abfrage zur Treiberinstallation " +
+                    "im Hintergrund – bitte nachsehen und bestätigen, dann erneut versuchen.");
+            }
+
+            var text = File.Exists(output) ? await ReadAllTextLenient(output).ConfigureAwait(false) : "";
+            var code = File.Exists(exit) && int.TryParse((await File.ReadAllTextAsync(exit, token).ConfigureAwait(false)).Trim(), out var c) ? c : p.ExitCode;
+            return new SetupcResult(code, text);
         }
         catch (Win32Exception ex) when (ex.NativeErrorCode == 1223)
         {
-            throw new OperationCanceledException("Administratorrechte wurden abgelehnt.", ex);
+            throw new OperationCanceledException("Die Administrator-Abfrage wurde abgebrochen.", ex);
         }
         finally
         {
-            try { File.Delete(tmp); } catch (Exception) { }
+            foreach (var f in new[] { script, output, exit })
+            {
+                try { File.Delete(f); } catch (Exception) { }
+            }
         }
     }
+
+    private static async Task<string> ReadAllTextLenient(string path)
+    {
+        var bytes = await File.ReadAllBytesAsync(path).ConfigureAwait(false);
+        // setupc writes in the console code page; UTF-8 after chcp 65001, fall back to Latin-1 for odd characters
+        try { return new UTF8Encoding(false, true).GetString(bytes); }
+        catch (DecoderFallbackException) { return Encoding.Latin1.GetString(bytes); }
+    }
+
+    private static string Trim(string s)
+    {
+        s = s.Trim();
+        return s.Length == 0 ? "(keine Ausgabe)" : s.Length > 1500 ? s[..1500] + " …" : s;
+    }
 }
+
+/// <summary>A com0com problem with a message that can be shown to the user as it is.</summary>
+public sealed class Com0comException(string message) : Exception(message);

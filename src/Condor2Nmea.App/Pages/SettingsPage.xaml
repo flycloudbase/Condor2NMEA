@@ -233,6 +233,7 @@
                         <CheckBox Content="Positionen zwischen den Updates hochrechnen (flüssigeres Radar)" IsChecked="{Binding Settings.Spectate.Extrapolate}" />
                         <CheckBox Content="Wettbewerbskennung an FLARM-ID anhängen (nur XCSoar, nicht FLARM-konform – Cloudbase zeigt den Verkehr dann nicht)" IsChecked="{Binding Settings.Spectate.NonStandardCnInFlarmId}" />
                         <CheckBox Content="Ohne COM-Port die eigene Position aus Spectate verwenden (1 Hz)" IsChecked="{Binding Settings.Spectate.UseAsPositionFallback}" />
+                        <CheckBox Content="FLARM-Kollisionswarnungen berechnen (Warnstufen 1–3 an Flugcomputer und Cloudbase)" IsChecked="{Binding Settings.Collision.Enabled}" />
                     </StackPanel>
                 </ui:Card>
 

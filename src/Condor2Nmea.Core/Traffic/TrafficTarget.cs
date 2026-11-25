@@ -11,6 +11,8 @@ public sealed record TrafficTarget
     public double RelativeNorth { get; init; }
     public double RelativeEast { get; init; }
     public double RelativeVertical { get; init; }
+    /// <summary>Estimated turn rate from successive Spectate headings [deg/s], positive = right.</summary>
+    public double TurnRate { get; init; }
     /// <summary>Altitude above sea level from Spectate (extrapolated) [m].</summary>
     public double? Altitude { get; init; }
     public double Distance => Math.Sqrt(RelativeNorth * RelativeNorth + RelativeEast * RelativeEast);

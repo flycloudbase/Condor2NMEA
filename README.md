@@ -14,7 +14,7 @@ sodass HW VSP3 o. ä. nicht mehr nötig ist.
 |---|---|
 | GPS | `$GPRMC` (mit Datum), `$GPGGA` (Geoid-Separation 0.0 → keine 40-m-Höhenfehler in XCSoar) |
 | LX | `$LXWP0` wie Condor (TAS in Feld 1), optional `$LXWP2` (MacCready) |
-| FLARM | `$PFLAA` und `$PFLAU` nach FLARM Data Port ICD (FTD-012 7.23), `$PFLAM` (Pilot, Wettbewerbskennung, Kennzeichen, Muster) |
+| FLARM | `$PFLAA` und `$PFLAU` nach FLARM Data Port ICD (FTD-012 7.23) mit berechneten Kollisionswarnungen (Stufe 1–3, siehe [docs/FLARM-Warnungen.md](docs/FLARM-Warnungen.md)), `$PFLAM` (Pilot, Wettbewerbskennung, Kennzeichen, Muster) |
 | OpenVario | `$POV` (TE, unkompensiert, TAS, G-Last) für ein zweites XCSoar-Gerät |
 | Raw | Condor-NMEA unverändert |
 | Cloudbase | eigene Sätze `$PCBC,DATA/INFO/EVENT` mit Netto, IAS, Lage, G-Last, Höhe über Grund, MacCready, Ballast, Klappen, Funkfrequenz, Rennstand und Condor-Meldungen – siehe [docs/PCBC.md](docs/PCBC.md) |
@@ -24,7 +24,9 @@ sodass HW VSP3 o. ä. nicht mehr nötig ist.
 `Condor2NMEA.exe` starten. Beim ersten Start öffnet sich die Seite **Einrichtung**, die in fünf Schritten durch alles führt
 und erledigte Schritte automatisch abhakt:
 
-1. **com0com installieren** – Download-Knopf öffnet die Seite des signierten Treibers. Bei der Installation die Häkchen für Beispiel-Ports entfernen.
+1. **com0com installieren** – unbedingt die **signierte Version 2.2.2.0** (`com0com-2.2.2.0-x64-fre-signer.zip`, Knopf in der App).
+   Version 3.0 ist nur testsigniert und wird von Windows 10/11 nicht geladen; Condor2NMEA erkennt sie und warnt.
+   ZIP entpacken, `setup.exe` starten, die Häkchen für Beispiel-Ports entfernen, die Windows-Sicherheitsabfrage bestätigen.
 2. **Virtuellen COM-Port anlegen** – ein Klick (Windows fragt einmal nach Administratorrechten). Es entsteht z. B. `COM9` für Condor ↔ `CNCB0` für Condor2NMEA.
 3. **Condor-Ausgaben einschalten** – in Condor *Setup → Options → NMEA output* den angezeigten Port wählen; „UDP-Ausgabe einrichten“ schreibt die `UDP.ini` (mit Sicherung).
 4. **Condor starten und fliegen** – Condor erst *nach* dem Anlegen des Ports starten.

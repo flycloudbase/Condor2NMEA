@@ -78,7 +78,7 @@ public sealed partial class InstrumentTile : ObservableObject
 }
 
 public sealed record TrafficRow(string Cn, string Pilot, string Plane, string Distance, string Bearing,
-    string Vertical, string Altitude, string Speed, string Vario, string Status);
+    string Vertical, string Altitude, string Speed, string Vario, string Status, string Alarm = "");
 
 public sealed record MonitorRow(string Time, string Direction, string Channel, string Text, Brush Brush);
 

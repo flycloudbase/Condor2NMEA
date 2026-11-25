@@ -523,6 +523,8 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty] private double _radarRangeKm = 10;
     [ObservableProperty] private string _trafficInfo = "Brücke ist gestoppt.";
     [ObservableProperty] private bool _hasTraffic;
+    [ObservableProperty] private string _collisionText = "";
+    [ObservableProperty] private bool _hasCollisionWarning;
 
     /// <summary>Choices for the own glider: "automatic" plus every pilot in the session.</summary>
     public ObservableCollection<Option<string>> OwnShipOptions { get; } = new() { new Option<string>("", AutoOwnShipLabel) };
@@ -622,15 +624,19 @@ public sealed partial class MainViewModel : ObservableObject
                 : $"eigenes Flugzeug: {own.DisplayName} {own.PilotName} ({(manual ? "manuell gewählt" : "automatisch erkannt")})" +
                   OwnAltitudeCheck(own, snap));
         HasTraffic = targets.Count > 0;
+        var alarms = engine.CurrentAlarms;
         RadarTargets = targets.Select(t => new RadarTarget(t.RelativeNorth, t.RelativeEast, t.RelativeVertical,
-            t.Pilot.DisplayName, t.Pilot.Heading)).ToList();
+            t.Pilot.DisplayName, t.Pilot.Heading, alarms.GetValueOrDefault(t.HexId))).ToList();
+        var worst = alarms.Count == 0 ? 0 : alarms.Values.Max();
+        CollisionText = worst == 0 ? "" : $"FLARM-Warnung Stufe {worst}: {string.Join(", ", targets.Where(t => alarms.GetValueOrDefault(t.HexId) == worst).Select(t => t.Pilot.DisplayName))}";
+        HasCollisionWarning = worst > 0;
         string F(double v, string f) => v.ToString(f, CultureInfo.CurrentCulture);
         Replace(Traffic, targets.Select(t => new TrafficRow(
             t.Pilot.DisplayName, t.Pilot.PilotName, t.Pilot.Plane,
             F(t.Distance / 1000, "0.0") + " km", F(t.Bearing, "0") + "°", F(t.RelativeVertical, "+0;-0;0") + " m",
             t.Altitude is { } alt ? F(alt, "N0") + " m" : "",
             t.Pilot.Speed is { } sp ? F(sp * 3.6, "0") + " km/h" : "", t.Pilot.Vario is { } v ? F(v, "+0.0;-0.0;0.0") + " m/s" : "",
-            t.Pilot.PlayerStatus)));
+            t.Pilot.PlayerStatus, alarms.GetValueOrDefault(t.HexId) is var lvl and > 0 ? $"⚠ {lvl}" : "")));
     }
 
     // ================================================================== monitor

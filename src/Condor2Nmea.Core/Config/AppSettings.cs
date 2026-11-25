@@ -28,6 +28,7 @@ public sealed class AppSettings
     };
     public Com0comSettings Com0com { get; set; } = new();
     public RecordingSettings Recording { get; set; } = new();
+    public CollisionSettings Collision { get; set; } = new();
     /// <summary>Start the bridge automatically when the app starts.</summary>
     public bool AutoStart { get; set; } = true;
 }
@@ -149,4 +150,10 @@ public sealed class RecordingSettings
     public bool Enabled { get; set; }
     /// <summary>Empty = %APPDATA%\Condor2NMEA\recordings</summary>
     public string Directory { get; set; } = "";
+}
+
+public sealed class CollisionSettings
+{
+    /// <summary>Compute FLARM-like collision warnings (PFLAA/PFLAU alarm levels) for multiplayer traffic.</summary>
+    public bool Enabled { get; set; } = true;
 }

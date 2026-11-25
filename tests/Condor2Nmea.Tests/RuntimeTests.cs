@@ -23,6 +23,32 @@ public class RuntimeTests
         Assert.Equal("CNCB1", pairs[1].AppPort);
     }
 
+    [Fact]
+    public void SetupcScriptRunsFromTheInstallFolderAndCapturesOutput()
+    {
+        var script = Com0comManager.BuildScript(@"C:\Program Files (x86)\com0com", "--silent install PortName=COM9 -",
+            @"C:\ProgramData\Condor2NMEA\setupc\out.txt", @"C:\ProgramData\Condor2NMEA\setupc\exit.txt");
+        var lines = script.Split("\r\n");
+        Assert.Contains(@"cd /d ""C:\Program Files (x86)\com0com""", lines);
+        Assert.Contains(@"setupc.exe --silent install PortName=COM9 - > ""C:\ProgramData\Condor2NMEA\setupc\out.txt"" 2>&1", lines);
+        Assert.Contains(@"echo %ERRORLEVEL% > ""C:\ProgramData\Condor2NMEA\setupc\exit.txt""", lines);
+    }
+
+    [Theory]
+    [InlineData("3.0.0.0", true)]
+    [InlineData("2.2.2.0", false)]
+    [InlineData(null, false)]
+    public void Com0com3IsReportedAsUnsupported(string? version, bool unsupported) =>
+        Assert.Equal(unsupported, Com0comManager.IsUnsupportedVersion(version is null ? null : Version.Parse(version)));
+
+    [Fact]
+    public void RecommendsTheSigned2222Package()
+    {
+        Assert.Matches(@"^com0com-2\.2\.2\.0-(x64|i386)-fre-signer\.zip$", Com0comManager.RecommendedPackage);
+        Assert.Contains("/2.2.2.0/", Com0comManager.DirectDownloadUrl);
+        Assert.EndsWith("/download", Com0comManager.DirectDownloadUrl);
+    }
+
     [Theory]
     [InlineData("COM9", 9)]
     [InlineData("com12", 12)]
