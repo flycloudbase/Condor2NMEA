@@ -24,7 +24,7 @@ sodass HW VSP3 o. ä. nicht mehr nötig ist.
 `Condor2NMEA.exe` starten. Beim ersten Start öffnet sich die Seite **Einrichtung**, die in fünf Schritten durch alles führt
 und erledigte Schritte automatisch abhakt:
 
-1. **com0com installieren** – unbedingt die **signierte Version 2.2.2.0** (`com0com-2.2.2.0-x64-fre-signer.zip`, Knopf in der App).
+1. **com0com installieren** – unbedingt die **signierte Version 2.2.2.0** ([`com0com-2.2.2.0-x64-fre-signed.zip`](https://sourceforge.net/projects/com0com/files/com0com/2.2.2.0/com0com-2.2.2.0-x64-fre-signed.zip/download), auch per Knopf in der App).
    Version 3.0 ist nur testsigniert und wird von Windows 10/11 nicht geladen; Condor2NMEA erkennt sie und warnt.
    ZIP entpacken, `setup.exe` starten, die Häkchen für Beispiel-Ports entfernen, die Windows-Sicherheitsabfrage bestätigen.
 2. **Virtuellen COM-Port anlegen** – ein Klick (Windows fragt einmal nach Administratorrechten). Es entsteht z. B. `COM9` für Condor ↔ `CNCB0` für Condor2NMEA.

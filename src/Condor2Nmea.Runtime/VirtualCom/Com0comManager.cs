@@ -46,13 +46,19 @@ public sealed partial class Com0comManager
     /// <summary>Folder with the signed 2.2.2.0 packages (x64 and i386).</summary>
     public const string DownloadUrl = "https://sourceforge.net/projects/com0com/files/com0com/2.2.2.0/";
 
-    /// <summary>Direct download of the signed 2.2.2.0 package matching this Windows.</summary>
-    public static string DirectDownloadUrl =>
-        $"https://sourceforge.net/projects/com0com/files/com0com/2.2.2.0/{RecommendedPackage}/download";
+    /// <summary>Direct download of the signed 2.2.2.0 package for 64-bit Windows.</summary>
+    public const string DirectDownloadUrlX64 =
+        "https://sourceforge.net/projects/com0com/files/com0com/2.2.2.0/com0com-2.2.2.0-x64-fre-signed.zip/download";
 
-    /// <summary>File name of the signed 2.2.2.0 package matching this Windows.</summary>
+    /// <summary>
+    /// Download for this Windows: the signed x64 package directly; on 32-bit Windows the 2.2.2.0 folder, where the
+    /// i386 package has to be picked.
+    /// </summary>
+    public static string DirectDownloadUrl => Environment.Is64BitOperatingSystem ? DirectDownloadUrlX64 : DownloadUrl;
+
+    /// <summary>Name of the package to install on this Windows.</summary>
     public static string RecommendedPackage =>
-        Environment.Is64BitOperatingSystem ? "com0com-2.2.2.0-x64-fre-signer.zip" : "com0com-2.2.2.0-i386-fre-signer.zip";
+        Environment.Is64BitOperatingSystem ? "com0com-2.2.2.0-x64-fre-signed.zip" : "das signierte i386-Paket von com0com 2.2.2.0";
 
     private const string ParametersKey = @"SYSTEM\CurrentControlSet\Services\com0com\Parameters";
     private static readonly TimeSpan SetupcTimeout = TimeSpan.FromSeconds(120);
