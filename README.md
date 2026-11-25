@@ -38,6 +38,20 @@ Vario, Netto, Wind und MacCready. Unter **Verkehr** gibt es ein Radar der Multip
 Weitere Geräte (z. B. ein zweites XCSoar-Gerät mit Profil *OpenVario* oder den umgekehrten Verbindungsweg *TCP-Client*) legst du unter
 **Einstellungen → Ausgänge** an.
 
+### Flugcomputer erreicht den PC nicht
+
+Zeigt der Ausgang „Wartet auf Verbindung“, lauscht Condor2NMEA bereits; dann liegt es fast immer am Netzwerk:
+
+- **Falsche IP-Adresse.** VPN-Programme wie Hamachi, Radmin VPN, ZeroTier oder Tailscale und virtuelle Adapter (Hyper-V, WSL,
+  VirtualBox) bringen eigene Adressen mit, z. B. `25.x.x.x` bei Hamachi. Das Handy im WLAN erreicht sie nicht.
+  Condor2NMEA zeigt die WLAN- oder LAN-Adresse zuerst an und nennt den Adapter darunter; alle anderen Adressen stehen unter
+  *Andere Adressen dieses PCs*. Im Zweifel mit `ipconfig` vergleichen.
+- **Netzwerkprofil „Öffentlich“.** Windows blockt dann eingehende Verbindungen auch bei freigegebener App. In den
+  WLAN-Einstellungen auf „Privat“ stellen oder die Firewall-Regel für öffentliche Netze erlauben.
+- **Gast-WLAN oder Client-Isolation** im Router: Handy und PC müssen sich gegenseitig sehen dürfen.
+- **iPhone:** In *Einstellungen → Datenschutz → Lokales Netzwerk* muss der Flugcomputer (z. B. Cloudbase) eingeschaltet sein.
+- **Port:** XCSoar 4353, Cloudbase 4354.
+
 ### Ohne COM-Port
 
 Ist kein NMEA vorhanden, verwendet Condor2NMEA die eigene Position aus Spectate.json (1 Hz) und die übrigen Werte aus UDP.
