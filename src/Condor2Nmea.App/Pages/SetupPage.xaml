@@ -253,6 +253,7 @@
                                     <TextBlock Text="IP-Adresse dieses PCs" Style="{StaticResource Caption}" />
                                     <TextBlock Text="{Binding PrimaryAddress}" FontSize="24" FontFamily="Cascadia Mono, Consolas"
                                                Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                    <TextBlock Text="{Binding PrimaryAdapter}" Style="{StaticResource Caption}" />
                                 </StackPanel>
                                 <StackPanel Margin="28,0,0,0">
                                     <TextBlock Text="Port" Style="{StaticResource Caption}" />
@@ -264,6 +265,27 @@
                                            Command="{Binding CopyTextCommand}" CommandParameter="{Binding PrimaryAddress}" />
                             </StackPanel>
                         </Border>
+                        <ui:InfoBar Margin="0,12,0,0" IsOpen="{Binding OnlyVirtualAddresses}" IsClosable="False" Severity="Warning"
+                                    Title="Kein WLAN- oder LAN-Adapter gefunden"
+                                    Message="Es gibt nur Adressen von VPN-Programmen wie Hamachi, Radmin oder ZeroTier. Darüber erreicht das Handy den PC nicht. Verbinde den PC mit demselben WLAN oder Router wie das Handy." />
+                        <Expander Margin="0,12,0,0" Header="Andere Adressen dieses PCs" IsExpanded="False"
+                                  Visibility="{Binding HasOtherAddresses, Converter={StaticResource BoolToVisibility}}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,8"
+                                           Text="Nur nötig, wenn die Adresse oben nicht funktioniert. Adressen von VPN-Programmen wie Hamachi erreicht das Handy im WLAN nicht." />
+                                <ItemsControl ItemsSource="{Binding OtherAddresses}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal" Margin="0,2">
+                                                <TextBlock Text="{Binding Address}" Width="150" FontFamily="Cascadia Mono, Consolas"
+                                                           Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                                <TextBlock Text="{Binding Label}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Expander>
                         <TextBlock Style="{StaticResource Caption}" Margin="0,10,0,0"
                                    Text="Cloudbase: unter Einstellungen › Geräte ein Gerät „Condor“ (TCP) mit dieser IP-Adresse und Port 4354 anlegen – dort kommen zusätzlich Netto, Lage, MacCready, Ballast und Rennstand an. Weitere Geräte oder andere Ports legst du unter Einstellungen → Ausgänge an." />
                     </StackPanel>

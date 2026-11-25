@@ -13,6 +13,7 @@ using CommunityToolkit.Mvvm.Input;
 using Condor2Nmea.App.Controls;
 using Condor2Nmea.Core.Config;
 using Condor2Nmea.Core.Model;
+using Condor2Nmea.Core.Network;
 using Condor2Nmea.Runtime;
 using Condor2Nmea.Runtime.CondorFiles;
 using Wpf.Ui.Controls;
@@ -74,8 +75,14 @@ public sealed partial class MainViewModel : ObservableObject
     public AppSettings Settings { get; }
     public ObservableCollection<OutputEditor> Outputs { get; }
     public ComPortViewModel ComPort { get; }
-    public IReadOnlyList<string> LocalAddresses { get; }
-    public string PrimaryAddress => LocalAddresses.FirstOrDefault() ?? "IP-Adresse dieses PCs";
+    /// <summary>IPv4 addresses of this PC, best first (WLAN/LAN before VPN adapters such as Hamachi).</summary>
+    public IReadOnlyList<AdapterAddress> LocalAddresses { get; }
+    public string PrimaryAddress => LocalAddresses.FirstOrDefault()?.Address.ToString() ?? "IP-Adresse dieses PCs";
+    public string PrimaryAdapter => LocalAddresses.FirstOrDefault()?.Label ?? "";
+    public IReadOnlyList<AdapterAddress> OtherAddresses => LocalAddresses.Skip(1).ToList();
+    public bool HasOtherAddresses => LocalAddresses.Count > 1;
+    /// <summary>Only VPN/virtual adapters found: the phone will most likely not reach any of them.</summary>
+    public bool OnlyVirtualAddresses => LocalAddresses.Count > 0 && LocalAddresses.All(a => a.Kind == AdapterKind.Virtual);
 
     /// <summary>True when the user has never saved settings (first start → show setup).</summary>
     public bool IsFirstStart { get; private set; }
@@ -236,24 +243,34 @@ public sealed partial class MainViewModel : ObservableObject
         }
     }
 
-    private static IEnumerable<string> GetLocalAddresses()
+    private static IReadOnlyList<AdapterAddress> GetLocalAddresses()
     {
         try
         {
-            return NetworkInterface.GetAllNetworkInterfaces()
-                .Where(n => n.OperationalStatus == OperationalStatus.Up &&
-                            n.NetworkInterfaceType is not (NetworkInterfaceType.Loopback or NetworkInterfaceType.Tunnel))
-                .OrderByDescending(n => n.GetIPProperties().GatewayAddresses.Count > 0)
-                .SelectMany(n => n.GetIPProperties().UnicastAddresses)
-                .Where(a => a.Address.AddressFamily == AddressFamily.InterNetwork && !IPAddress.IsLoopback(a.Address) &&
-                            !a.Address.ToString().StartsWith("169.254.", StringComparison.Ordinal))
-                .Select(a => a.Address.ToString())
-                .Distinct()
-                .ToList();
+            var found = new List<AdapterAddress>();
+            foreach (var n in NetworkInterface.GetAllNetworkInterfaces())
+            {
+                if (n.OperationalStatus != OperationalStatus.Up ||
+                    n.NetworkInterfaceType is NetworkInterfaceType.Loopback or NetworkInterfaceType.Tunnel)
+                    continue;
+                var props = n.GetIPProperties();
+                var hasGateway = props.GatewayAddresses.Any(g =>
+                    g.Address.AddressFamily == AddressFamily.InterNetwork && !g.Address.Equals(IPAddress.Any));
+                var kind = n.NetworkInterfaceType switch
+                {
+                    NetworkInterfaceType.Wireless80211 => AdapterKind.Wlan,
+                    NetworkInterfaceType.Ethernet or NetworkInterfaceType.GigabitEthernet or NetworkInterfaceType.FastEthernetT
+                        or NetworkInterfaceType.FastEthernetFx or NetworkInterfaceType.Ethernet3Megabit => AdapterKind.Ethernet,
+                    _ => AdapterKind.Other,
+                };
+                foreach (var a in props.UnicastAddresses)
+                    found.Add(new AdapterAddress(n.Name, n.Description, kind, hasGateway, a.Address));
+            }
+            return LocalAddressRanker.Rank(found);
         }
         catch (Exception)
         {
-            return Array.Empty<string>();
+            return Array.Empty<AdapterAddress>();
         }
     }
 

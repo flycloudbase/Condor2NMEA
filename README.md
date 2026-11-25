@@ -24,7 +24,7 @@ sodass HW VSP3 o. ä. nicht mehr nötig ist.
 `Condor2NMEA.exe` starten. Beim ersten Start öffnet sich die Seite **Einrichtung**, die in fünf Schritten durch alles führt
 und erledigte Schritte automatisch abhakt:
 
-1. **com0com installieren** – unbedingt die **signierte Version 2.2.2.0** (`com0com-2.2.2.0-x64-fre-signer.zip`, Knopf in der App).
+1. **com0com installieren** – unbedingt die **signierte Version 2.2.2.0** ([`com0com-2.2.2.0-x64-fre-signed.zip`](https://sourceforge.net/projects/com0com/files/com0com/2.2.2.0/com0com-2.2.2.0-x64-fre-signed.zip/download), auch per Knopf in der App).
    Version 3.0 ist nur testsigniert und wird von Windows 10/11 nicht geladen; Condor2NMEA erkennt sie und warnt.
    ZIP entpacken, `setup.exe` starten, die Häkchen für Beispiel-Ports entfernen, die Windows-Sicherheitsabfrage bestätigen.
 2. **Virtuellen COM-Port anlegen** – ein Klick (Windows fragt einmal nach Administratorrechten). Es entsteht z. B. `COM9` für Condor ↔ `CNCB0` für Condor2NMEA.
@@ -37,6 +37,20 @@ Die **Übersicht** zeigt danach auf einen Blick, ob Daten aus Condor ankommen un
 Vario, Netto, Wind und MacCready. Unter **Verkehr** gibt es ein Radar der Multiplayer-Flugzeuge und eine Auswahl des eigenen Flugzeugs (automatisch oder manuell aus der Liste der Piloten), der **NMEA-Monitor** zeigt alle Sätze.
 Weitere Geräte (z. B. ein zweites XCSoar-Gerät mit Profil *OpenVario* oder den umgekehrten Verbindungsweg *TCP-Client*) legst du unter
 **Einstellungen → Ausgänge** an.
+
+### Flugcomputer erreicht den PC nicht
+
+Zeigt der Ausgang „Wartet auf Verbindung“, lauscht Condor2NMEA bereits; dann liegt es fast immer am Netzwerk:
+
+- **Falsche IP-Adresse.** VPN-Programme wie Hamachi, Radmin VPN, ZeroTier oder Tailscale und virtuelle Adapter (Hyper-V, WSL,
+  VirtualBox) bringen eigene Adressen mit, z. B. `25.x.x.x` bei Hamachi. Das Handy im WLAN erreicht sie nicht.
+  Condor2NMEA zeigt die WLAN- oder LAN-Adresse zuerst an und nennt den Adapter darunter; alle anderen Adressen stehen unter
+  *Andere Adressen dieses PCs*. Im Zweifel mit `ipconfig` vergleichen.
+- **Netzwerkprofil „Öffentlich“.** Windows blockt dann eingehende Verbindungen auch bei freigegebener App. In den
+  WLAN-Einstellungen auf „Privat“ stellen oder die Firewall-Regel für öffentliche Netze erlauben.
+- **Gast-WLAN oder Client-Isolation** im Router: Handy und PC müssen sich gegenseitig sehen dürfen.
+- **iPhone:** In *Einstellungen → Datenschutz → Lokales Netzwerk* muss der Flugcomputer (z. B. Cloudbase) eingeschaltet sein.
+- **Port:** XCSoar 4353, Cloudbase 4354.
 
 ### Ohne COM-Port
 

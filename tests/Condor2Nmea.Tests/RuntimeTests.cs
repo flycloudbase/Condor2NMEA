@@ -44,9 +44,10 @@ public class RuntimeTests
     [Fact]
     public void RecommendsTheSigned2222Package()
     {
-        Assert.Matches(@"^com0com-2\.2\.2\.0-(x64|i386)-fre-signer\.zip$", Com0comManager.RecommendedPackage);
+        Assert.Equal("https://sourceforge.net/projects/com0com/files/com0com/2.2.2.0/com0com-2.2.2.0-x64-fre-signed.zip/download",
+            Com0comManager.DirectDownloadUrlX64);
         Assert.Contains("/2.2.2.0/", Com0comManager.DirectDownloadUrl);
-        Assert.EndsWith("/download", Com0comManager.DirectDownloadUrl);
+        Assert.Contains("2.2.2.0", Com0comManager.RecommendedPackage);
     }
 
     [Theory]
